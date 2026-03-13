@@ -34,14 +34,16 @@ public class JwtService {
                 .getBody();
     }
 
-    // ✅ Token complet : id + typeCompte + role + companyId
-    public String generateToken(CustomUserDetails userDetails) {
+    // Générer un token pour un CustomUserDetails
+    public String generateToken(CustomUserDetails userDetails, String typeCompte) {
+        String role = userDetails.getRole();  // Utilisation du rôle depuis CustomUserDetails
+
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())          // email
                 .claim("id", userDetails.getId())               // String (manager) ou String.valueOf(long)
-                .claim("typeCompte", userDetails.getTypeCompte()) // MANAGER / USER / COMPANY
-                .claim("role", userDetails.getRole())           // ex: ADMINISTRATEUR / SUPER_ADMIN / COMPANY
-                .claim("companyId", userDetails.getCompanyId()) // String ou null ✅
+                .claim("typeCompte", typeCompte)                // "USER" ou "PASSENGER"
+                .claim("role", role)                            // ex: "SUPER_ADMIN" ou "USER"
+                .claim("companyId", userDetails.getCompanyId()) // String ou null
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 10)) // 10h
                 .signWith(secretKey, SignatureAlgorithm.HS256)
@@ -61,24 +63,20 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    // ✅ Extract helpers
+    // Extraction des informations
     public String extractId(String token) {
-        // id peut être String (manager) ou num -> on le récupère comme String
-        Object val = extractAllClaims(token).get("id");
-        return val == null ? null : String.valueOf(val);
-    }
-
-    public String extractTypeCompte(String token) {
-        return extractAllClaims(token).get("typeCompte", String.class);
+        return extractClaim(token, claims -> claims.get("id", String.class));
     }
 
     public String extractRole(String token) {
-        return extractAllClaims(token).get("role", String.class);
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public String extractTypeCompte(String token) {
+        return extractClaim(token, claims -> claims.get("typeCompte", String.class));
     }
 
     public String extractCompanyId(String token) {
-        Object val = extractAllClaims(token).get("companyId");
-        return val == null ? null : String.valueOf(val);
+        return extractClaim(token, claims -> claims.get("companyId", String.class));
     }
-
 }

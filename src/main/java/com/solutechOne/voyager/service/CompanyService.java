@@ -18,9 +18,6 @@
     import java.nio.file.Path;
     import java.nio.file.StandardCopyOption;
     import java.util.UUID;
-    import java.io.IOException;
-    import java.nio.file.Files;
-    import java.nio.file.StandardCopyOption;
     import java.util.Map;
     import java.util.concurrent.atomic.AtomicLong;
 
@@ -49,7 +46,7 @@
 
         private CompanyDTO toDto(Company c) {
             CompanyDTO dto = new CompanyDTO();
-            dto.setId(c.getId());
+            dto.setId(c.getCompanyId());
             dto.setType(c.getType());
             dto.setName(c.getName());
             dto.setUrlLogo(c.getUrlLogo());
@@ -92,8 +89,8 @@
             Company company = new Company();
 
             // ✅ ID généré si absent
-            if (company.getId() == null || company.getId().isBlank()) {
-                company.setId(generateCompanyId());
+            if (company.getCompanyId() == null || company.getCompanyId().isBlank()) {
+                company.setCompanyId(generateCompanyId());
             }
 
             updateEntityFromDto(dto, company);
@@ -171,7 +168,7 @@
             var all = companyRepository.findAll();
             for (Company c : all) {
                 try {
-                    String id = c.getId();
+                    String id = c.getCompanyId();
                     if (id != null && id.matches("5\\d{5}")) { // 6 chiffres et commence par 7
                         long val = Long.parseLong(id);
                         if (val > max) max = val;

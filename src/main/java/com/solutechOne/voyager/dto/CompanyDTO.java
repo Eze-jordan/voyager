@@ -16,7 +16,7 @@ public class CompanyDTO {
     private String rccm;
     private String appId;
     private String address;
-    private Long phone;
+    private String phone;
     private String email;
     private String aggrement;
     private BigDecimal rateFees;
@@ -90,11 +90,11 @@ public class CompanyDTO {
         this.address = address;
     }
 
-    public Long getPhone() {
+    public String getPhone() {
         return phone;
     }
 
-    public void setPhone(Long phone) {
+    public void setPhone(String phone) {
         this.phone = phone;
     }
 
@@ -138,5 +138,4 @@ public class CompanyDTO {
         this.status = status;
     }
 
-    // getters / setters
 }

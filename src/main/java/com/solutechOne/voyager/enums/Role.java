@@ -5,5 +5,6 @@ public enum Role {
     SUPER_ADMIN,
     CLIENT_USER,
     AUDITEUR,
-    SERVEUR
+    SERVEUR,
+    PASSENGER
 }

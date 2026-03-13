@@ -95,7 +95,7 @@ public class NotificationService {
         """.formatted(
                     company.getName(),
                     company.getUsername(),
-                    company.getId(),
+                    company.getCompanyId(),
                     company.getEmail(),
                     rawPassword
             );

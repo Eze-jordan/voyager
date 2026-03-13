@@ -1,12 +1,15 @@
 package com.solutechOne.voyager.service;
 
 import com.solutechOne.voyager.enums.CompanyStatus;
+import com.solutechOne.voyager.enums.PassengerStatus;
 import com.solutechOne.voyager.enums.StatutCompte;
 import com.solutechOne.voyager.enums.UserStatus;
 import com.solutechOne.voyager.model.Company;
 import com.solutechOne.voyager.model.Manager;
+import com.solutechOne.voyager.model.Passenger;
 import com.solutechOne.voyager.repositories.CompanyRepository;
 import com.solutechOne.voyager.repositories.ManagerRepository;
+import com.solutechOne.voyager.repositories.PassengerRepository;
 import com.solutechOne.voyager.repositories.UserRepository;
 import com.solutechOne.voyager.securite.CustomUserDetails;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -21,13 +24,16 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final ManagerRepository managerRepository;
+    private final PassengerRepository passengerRepository;
+
 
     public CustomUserDetailsService(UserRepository userRepository,
                                     CompanyRepository companyRepository,
-                                    ManagerRepository managerRepository) {
+                                    ManagerRepository managerRepository, PassengerRepository passengerRepository) {
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.managerRepository = managerRepository;
+        this.passengerRepository = passengerRepository;
     }
 
     @Override
@@ -66,7 +72,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                         u.getStatus().name().toLowerCase() + ". Connexion refusée.");
             }
 
-            String compId = (u.getCompany() != null ? u.getCompany().getId() : null);
+            String compId = (u.getCompany() != null ? u.getCompany().getCompanyId() : null);
 
             return new CustomUserDetails(
                     String.valueOf(u.getId()),
@@ -92,7 +98,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             }
 
             return new CustomUserDetails(
-                    String.valueOf(c.getId()),
+                    String.valueOf(c.getCompanyId()),
                     c.getEmail(),
                     c.getPassword(),
                     c.getAuthorities(),
@@ -103,7 +109,28 @@ public class CustomUserDetailsService implements UserDetailsService {
                     null
             );
         }
+// 3) PASSENGER
+        var passengerOpt = passengerRepository.findByEmail(email);
+        if (passengerOpt.isPresent()) {
+            Passenger p = passengerOpt.get();
 
+            if (p.getStatus() != PassengerStatus.ACTIF) {
+                throw new BadCredentialsException("⚠️ Compte passager " +
+                        p.getStatus().name().toLowerCase() + ". Connexion refusée.");
+            }
+
+            return new CustomUserDetails(
+                    p.getPassengerId(),
+                    p.getEmail(),
+                    p.getPassword(),
+                    p.getAuthorities(),
+                    p.getName() + " " + (p.getSurname() == null ? "" : p.getSurname()),
+                    "PASSENGER",
+                    p.getStatus().name(),
+                    p.getRole().name(),
+                    null
+            );
+        }
         throw new UsernameNotFoundException("❌ Aucun compte trouvé pour : " + email);
     }
 }

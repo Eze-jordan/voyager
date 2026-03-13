@@ -2,7 +2,6 @@ package com.solutechOne.voyager.model;
 
 import com.solutechOne.voyager.enums.CompanyStatus;
 import com.solutechOne.voyager.enums.CompanyType;
-import com.solutechOne.voyager.enums.UserStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -12,7 +11,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,7 +22,7 @@ public class Company implements UserDetails {
 
     @Id
     @Column(name = "company_id", nullable = false)
-    private String id; // Numérique (50000-599999) - auto (côté DB ou service)
+    private String companyId; // Numérique (50000-599999) - auto (côté DB ou service)
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -57,7 +55,7 @@ public class Company implements UserDetails {
     private String address;
 
     @Column(name = "company_phone")
-    private Long phone; // "Chiffre 9" -> on stocke en Long (ou String si tu veux préserver les 0)
+    private String phone; // "Chiffre 9" -> on stocke en Long (ou String si tu veux préserver les 0)
 
     @NotBlank
     @Email
@@ -92,8 +90,8 @@ public class Company implements UserDetails {
 
     // --- getters/setters ---
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getCompanyId() { return companyId; }
+    public void setCompanyId(String companyId) { this.companyId = companyId; }
 
     public CompanyType getType() { return type; }
     public void setType(CompanyType type) { this.type = type; }
@@ -116,8 +114,8 @@ public class Company implements UserDetails {
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
 
-    public Long getPhone() { return phone; }
-    public void setPhone(Long phone) { this.phone = phone; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -155,4 +153,7 @@ public class Company implements UserDetails {
     public void setPassword(@NotBlank @Size(max = 50) String password) {
         this.password = password;
     }
+
+
+
 }

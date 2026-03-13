@@ -47,7 +47,7 @@ public class UserService implements UserDetailsService {
         if (e == null) return null;
         UserDTO dto = new UserDTO();
         dto.setId(e.getId());
-        dto.setCompanyId(e.getCompany() != null ? e.getCompany().getId() : null);
+        dto.setCompanyId(e.getCompany() != null ? e.getCompany().getCompanyId() : null);
         dto.setName(e.getName());
         dto.setFirstname(e.getFirstname());
         dto.setEmail(e.getEmail());
@@ -163,7 +163,7 @@ public class UserService implements UserDetailsService {
         }
 
         // si companyId fourni => changer de company
-        if (dto.getCompanyId() != null && (e.getCompany() == null || !dto.getCompanyId().equals(e.getCompany().getId()))) {
+        if (dto.getCompanyId() != null && (e.getCompany() == null || !dto.getCompanyId().equals(e.getCompany().getCompanyId()))) {
             Company company = companyRepository.findById(dto.getCompanyId())
                     .orElseThrow(() -> new EntityNotFoundException("Company introuvable: " + dto.getCompanyId()));
             e.setCompany(company);

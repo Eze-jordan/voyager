@@ -32,7 +32,6 @@ public class AuthController {
     @Operation(summary = "Connexion", description = "Retourne message + token JWT")
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -43,13 +42,16 @@ public class AuthController {
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-            String token = jwtService.generateToken(userDetails);
+            // Récupère le type de compte (par exemple "USER" ou "MANAGER")
+            String typeCompte = userDetails.getTypeCompte();
+
+            // Appelle la méthode generateToken avec CustomUserDetails et le typeCompte
+            String token = jwtService.generateToken(userDetails, typeCompte);
 
             JwtResponse response = new JwtResponse(
                     "Connexion réussie",
                     token,
-                    userDetails.getTypeCompte()  // MANAGER / USER / COMPANY
-
+                    typeCompte  // MANAGER / USER / COMPANY
             );
 
             return ResponseEntity.ok(response);

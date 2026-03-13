@@ -1,5 +1,6 @@
 package com.solutechOne.voyager.securite;
 
+import com.solutechOne.voyager.service.CustomPassengerDetailsService;
 import com.solutechOne.voyager.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,7 +12,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,10 +23,14 @@ public class JwtFiller extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final CustomPassengerDetailsService passengerDetailsService;
 
-    public JwtFiller(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+    public JwtFiller(JwtService jwtService,
+                     CustomUserDetailsService userDetailsService,
+                     CustomPassengerDetailsService passengerDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.passengerDetailsService = passengerDetailsService;
     }
 
     @Override
@@ -37,7 +41,6 @@ public class JwtFiller extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        // Pas de JWT => on laisse passer
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -46,42 +49,46 @@ public class JwtFiller extends OncePerRequestFilter {
         String jwt = authHeader.substring(7);
 
         try {
-            String userEmail = jwtService.extractUsername(jwt);
-
+            String email = jwtService.extractUsername(jwt);
             Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
 
-            // ✅ On autorise aussi le cas "anonymous" (sinon ton filtre ne s'exécute jamais)
-            if (userEmail != null && (currentAuth == null || currentAuth instanceof AnonymousAuthenticationToken)) {
+            if (email != null && (currentAuth == null || currentAuth instanceof AnonymousAuthenticationToken)) {
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
+                String entityType = jwtService.extractTypeCompte(jwt);
+                String role = jwtService.extractRole(jwt);
 
-                if (jwtService.isTokenValid(jwt, userDetails)) {
+                List<SimpleGrantedAuthority> authorities =
+                        (role == null || role.isBlank())
+                                ? List.of()
+                                : List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
-                    // ✅ Rôle depuis le token
-                    String role = jwtService.extractRole(jwt); // ex: "SUPER_ADMIN" ou "ROLE_SUPER_ADMIN"
+                if ("USER".equals(entityType)
+                        || "MANAGER".equals(entityType)
+                        || "COMPANY".equals(entityType)) {
 
-                    // Normalisation
-                    if (role != null && role.startsWith("ROLE_")) {
-                        role = role.substring(5);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                    if (jwtService.isTokenValid(jwt, userDetails)) {
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
                     }
 
-                    List<SimpleGrantedAuthority> authorities =
-                            (role == null || role.isBlank())
-                                    ? List.of()
-                                    : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                } else if ("PASSENGER".equals(entityType)) {
 
-                    // ✅ IMPORTANT : utiliser authorities (pas userDetails.getAuthorities())
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                    UserDetails passengerDetails = passengerDetailsService.loadUserByUsername(email);
 
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    if (jwtService.isTokenValid(jwt, passengerDetails)) {
+                        UsernamePasswordAuthenticationToken authToken =
+                                new UsernamePasswordAuthenticationToken(passengerDetails, null, authorities);
+
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
                 }
             }
-
         } catch (Exception e) {
-            // Optionnel : log de debug (à activer si besoin)
-            // System.out.println("JWT ERROR: " + e.getMessage());
+            // optionnel: logger ici
         }
 
         filterChain.doFilter(request, response);
