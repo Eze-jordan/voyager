@@ -1,12 +1,16 @@
 package com.solutechOne.voyager.service;
 
 import com.solutechOne.voyager.dto.DepartureCreateRequest;
+import com.solutechOne.voyager.enums.BoardingConfirmed;
+import com.solutechOne.voyager.enums.SeatReservationStatus;
 import com.solutechOne.voyager.model.*;
 import com.solutechOne.voyager.repositories.*;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+
 @Service
 public class DepartureService {
 
@@ -15,59 +19,59 @@ public class DepartureService {
     private final TransportMeansRepository transportMeansRepository;
     private final CityRepository cityRepository;
     private final PlaceRepository placeRepository;
+    private final SeatRepository seatRepository;
+    private final SeatReservedRepository seatReservedRepository;
 
-    public DepartureService(DepartureRepository departureRepository,
-                            CompanyRepository companyRepository,
-                            TransportMeansRepository transportMeansRepository,
-                            CityRepository cityRepository,
-                            PlaceRepository placeRepository) {
+    public DepartureService(
+            DepartureRepository departureRepository,
+            CompanyRepository companyRepository,
+            TransportMeansRepository transportMeansRepository,
+            CityRepository cityRepository,
+            PlaceRepository placeRepository,
+            SeatRepository seatRepository,
+            SeatReservedRepository seatReservedRepository
+    ) {
         this.departureRepository = departureRepository;
         this.companyRepository = companyRepository;
         this.transportMeansRepository = transportMeansRepository;
         this.cityRepository = cityRepository;
         this.placeRepository = placeRepository;
+        this.seatRepository = seatRepository;
+        this.seatReservedRepository = seatReservedRepository;
     }
-    // Créer un départ via un DTO
+
+    // =========================
+    // CREATE DEPARTURE
+    // =========================
+
+    @Transactional
     public Departure createDeparture(DepartureCreateRequest req) {
-        if (req == null) throw new IllegalArgumentException("Request body is required");
 
-        String companyId = req.companyId;
-        String meansId = req.meansId;
-        String departureCityId = req.departureCityId;
-        String departureBoardingPlaceId = req.departureBoardingPlaceId;
-
-        if (companyId == null || companyId.isBlank())
-            throw new RuntimeException("companyId est obligatoire");
-
-        if (meansId == null || meansId.isBlank())
-            throw new RuntimeException("meansId est obligatoire");
-
-        if (departureCityId == null || departureCityId.isBlank())
-            throw new RuntimeException("departureCityId est obligatoire");
-
-        if (departureBoardingPlaceId == null || departureBoardingPlaceId.isBlank())
-            throw new RuntimeException("boardingPlaceId est obligatoire");
-
-        // Vérifier si la référence de départ existe déjà pour la compagnie
-        if (departureRepository.existsByCompany_CompanyIdAndDepartureReference(companyId, req.departureReference)) {
-            throw new RuntimeException("departureReference déjà utilisée pour cette compagnie");
+        if (req == null) {
+            throw new IllegalArgumentException("Request body is required");
         }
 
-        // Récupérer la compagnie et les autres informations
-        Company company = companyRepository.findById(companyId)
-                .orElseThrow(() -> new RuntimeException("Company introuvable"));
+        validateRequest(req);
 
-        TransportMeans means = transportMeansRepository.findById(meansId)
-                .orElseThrow(() -> new RuntimeException("TransportMeans introuvable"));
+        if (departureRepository.existsByCompany_CompanyIdAndDepartureReference(
+                req.companyId, req.departureReference)) {
+            throw new RuntimeException("departureReference already exists for this company");
+        }
 
-        City city = cityRepository.findById(departureCityId)
-                .orElseThrow(() -> new RuntimeException("City introuvable"));
+        Company company = companyRepository.findById(req.companyId)
+                .orElseThrow(() -> new RuntimeException("Company not found"));
 
-        Place boardingPlace = placeRepository.findById(departureBoardingPlaceId)
-                .orElseThrow(() -> new RuntimeException("Place introuvable"));
+        TransportMeans means = transportMeansRepository.findById(req.meansId)
+                .orElseThrow(() -> new RuntimeException("TransportMeans not found"));
 
-        // Créer l'entité Departure
+        City city = cityRepository.findById(req.departureCityId)
+                .orElseThrow(() -> new RuntimeException("City not found"));
+
+        Place boardingPlace = placeRepository.findById(req.departureBoardingPlaceId)
+                .orElseThrow(() -> new RuntimeException("Boarding place not found"));
+
         Departure departure = new Departure();
+
         departure.setCompany(company);
         departure.setMeans(means);
         departure.setDepartureCity(city);
@@ -79,17 +83,58 @@ public class DepartureService {
         departure.setDepartureCheckinEnd(req.departureCheckinEnd);
         departure.setDepartureBoardingTime(req.departureBoardingTime);
 
-        // Validation des données
         validateDeparture(departure);
 
-        return departureRepository.save(departure);
+        Departure savedDeparture = departureRepository.save(departure);
+
+        initializeSeats(savedDeparture);
+
+        return savedDeparture;
     }
 
+    // =========================
+    // INITIALIZE SEATS
+    // =========================
+
+    private void initializeSeats(Departure departure) {
+
+        List<Seat> seats = seatRepository.findByMeans_MeansId(
+                departure.getMeans().getMeansId()
+        );
+
+        for (Seat seat : seats) {
+
+            boolean exists = seatReservedRepository
+                    .findByDeparture_DepartureIdAndSeat_SeatId(
+                            departure.getDepartureId(),
+                            seat.getSeatId()
+                    )
+                    .isPresent();
+
+            if (exists) {
+                continue;
+            }
+
+            SeatReserved sr = new SeatReserved();
+
+            sr.setSeat(seat);
+            sr.setDeparture(departure);
+            sr.setReservedStatus(SeatReservationStatus.LIBRE);
+            sr.setBoardingConfirmed(BoardingConfirmed.NO);
+
+            seatReservedRepository.save(sr);
+        }
+    }
+
+    // =========================
+    // UPDATE
+    // =========================
 
     public Departure updateDeparture(String id, Departure updated) {
 
         return departureRepository.findById(id)
                 .map(dep -> {
+
                     dep.setDepartureReference(updated.getDepartureReference());
                     dep.setDepartureDate(updated.getDepartureDate());
                     dep.setDepartureTime(updated.getDepartureTime());
@@ -99,14 +144,24 @@ public class DepartureService {
                     dep.setDepartureStatus(updated.getDepartureStatus());
 
                     validateDeparture(dep);
+
                     return departureRepository.save(dep);
+
                 })
                 .orElseThrow(() -> new RuntimeException("Departure not found"));
     }
 
+    // =========================
+    // DELETE
+    // =========================
+
     public void deleteDeparture(String id) {
         departureRepository.deleteById(id);
     }
+
+    // =========================
+    // GET
+    // =========================
 
     public List<Departure> getAllDepartures() {
         return departureRepository.findAll();
@@ -120,7 +175,27 @@ public class DepartureService {
         return departureRepository.findByCompany_CompanyId(companyId);
     }
 
+    // =========================
+    // VALIDATION
+    // =========================
+
+    private void validateRequest(DepartureCreateRequest req) {
+
+        if (req.companyId == null || req.companyId.isBlank())
+            throw new RuntimeException("companyId is required");
+
+        if (req.meansId == null || req.meansId.isBlank())
+            throw new RuntimeException("meansId is required");
+
+        if (req.departureCityId == null || req.departureCityId.isBlank())
+            throw new RuntimeException("departureCityId is required");
+
+        if (req.departureBoardingPlaceId == null || req.departureBoardingPlaceId.isBlank())
+            throw new RuntimeException("departureBoardingPlaceId is required");
+    }
+
     private void validateDeparture(Departure departure) {
+
         if (departure.getDepartureReference() == null || departure.getDepartureReference().isBlank())
             throw new RuntimeException("Departure reference is required");
 
@@ -142,18 +217,18 @@ public class DepartureService {
         if (departure.getDepartureTime() == null)
             throw new RuntimeException("Departure time is required");
 
-        // Bonus cohérence horaires
-        if (departure.getDepartureCheckinStart() != null && departure.getDepartureCheckinEnd() != null) {
-            if (departure.getDepartureCheckinEnd().isBefore(departure.getDepartureCheckinStart())) {
-                throw new RuntimeException("checkinEnd ne peut pas être avant checkinStart");
-            }
+        if (departure.getDepartureCheckinStart() != null &&
+                departure.getDepartureCheckinEnd() != null &&
+                departure.getDepartureCheckinEnd().isBefore(departure.getDepartureCheckinStart())) {
+
+            throw new RuntimeException("checkinEnd cannot be before checkinStart");
         }
-        if (departure.getDepartureBoardingTime() != null && departure.getDepartureTime() != null) {
-            if (departure.getDepartureBoardingTime().isAfter(departure.getDepartureTime())) {
-                throw new RuntimeException("boardingTime ne peut pas être après departureTime");
-            }
+
+        if (departure.getDepartureBoardingTime() != null &&
+                departure.getDepartureTime() != null &&
+                departure.getDepartureBoardingTime().isAfter(departure.getDepartureTime())) {
+
+            throw new RuntimeException("boardingTime cannot be after departureTime");
         }
     }
-
-
 }

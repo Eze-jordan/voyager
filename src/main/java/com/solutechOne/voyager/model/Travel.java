@@ -2,7 +2,7 @@ package com.solutechOne.voyager.model;
 
 import jakarta.persistence.*;
 
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -25,48 +25,53 @@ public class Travel {
     @JoinColumn(name = "arrival_id", nullable = false)
     private TravelArrival arrival;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticket_price_id", nullable = false)
-    private TicketPrice ticketPrice;
-
-    @Column(name = "travel_amount", nullable = false)
-    private BigDecimal travelAmount;
+    @OneToMany(mappedBy = "travel")
+    private List<Reservation> reservations;
 
     @PrePersist
     public void generateId() {
-        if (this.travelId == null) {
+        if (this.travelId == null || this.travelId.isBlank()) {
             this.travelId = "travel-" + UUID.randomUUID();
         }
+    }
+
+    public String getTravelId() {
+        return travelId;
     }
 
     public void setTravelId(String travelId) {
         this.travelId = travelId;
     }
 
-    public TicketPrice getTicketPrice() {
-        return ticketPrice;
+    public Basket getBasket() {
+        return basket;
     }
 
-    public void setTicketPrice(TicketPrice ticketPrice) {
-        this.ticketPrice = ticketPrice;
+    public void setBasket(Basket basket) {
+        this.basket = basket;
     }
 
-    public BigDecimal getTravelAmount() {
-        return travelAmount;
+    public Departure getDeparture() {
+        return departure;
     }
 
-    public void setTravelAmount(BigDecimal travelAmount) {
-        this.travelAmount = travelAmount;
+    public void setDeparture(Departure departure) {
+        this.departure = departure;
     }
 
-    public String getTravelId() { return travelId; }
+    public TravelArrival getArrival() {
+        return arrival;
+    }
 
-    public Basket getBasket() { return basket; }
-    public void setBasket(Basket basket) { this.basket = basket; }
+    public void setArrival(TravelArrival arrival) {
+        this.arrival = arrival;
+    }
 
-    public Departure getDeparture() { return departure; }
-    public void setDeparture(Departure departure) { this.departure = departure; }
+    public List<Reservation> getReservations() {
+        return reservations;
+    }
 
-    public TravelArrival getArrival() { return arrival; }
-    public void setArrival(TravelArrival arrival) { this.arrival = arrival; }
+    public void setReservations(List<Reservation> reservations) {
+        this.reservations = reservations;
+    }
 }

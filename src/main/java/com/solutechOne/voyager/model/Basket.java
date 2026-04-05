@@ -2,6 +2,7 @@ package com.solutechOne.voyager.model;
 
 import com.solutechOne.voyager.enums.BasketStatus;
 import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,62 +16,63 @@ public class Basket {
     @Column(name = "basket_id", nullable = false, length = 60, updatable = false)
     private String basketId;
 
-    // =========================
-    // RELATION COMPANY
-    // =========================
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-    // =========================
-    // BASKET DATA
-    // =========================
-
-    @Column(name = "basket_amount", nullable = false)
+    @Column(name = "basket_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal basketAmount;
 
-    @Column(name = "basket_fees", nullable = false)
+    @Column(name = "basket_fees", nullable = false, precision = 15, scale = 2)
     private BigDecimal basketFees;
 
-    @Column(name = "basket_total_amount", nullable = false)
+    @Column(name = "basket_total_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal basketTotalAmount;
-
-    // =========================
-    // PAYMENT
-    // =========================
 
     @Column(name = "basket_payment_service", length = 20)
     private String basketPaymentService;
 
-    @Column(name = "basket_payment_id", length = 20)
+    @Column(name = "basket_payment_id", length = 50)
     private String basketPaymentId;
 
     @Column(name = "basket_payment_date")
     private LocalDateTime basketPaymentDate;
 
-    @Column(name = "basket_payment_account", length = 9)
+    @Column(name = "basket_payment_account", length = 20)
     private String basketPaymentAccount;
 
-    // =========================
-    // STATUS
-    // =========================
-
     @Enumerated(EnumType.STRING)
-    @Column(name = "basket_status", nullable = false)
+    @Column(name = "basket_status", nullable = false, length = 20)
     private BasketStatus basketStatus;
 
     @OneToMany(mappedBy = "basket")
     private List<Travel> travels;
-    // =========================
-    // AUTO GENERATION
-    // =========================
 
+    @Column(name = "guest_uuid", nullable = false, unique = true, length = 60, updatable = false)
+    private String guestUuid;
+
+    @Column(name = "buyer_phone", length = 20)
+    private String buyerPhone;
+
+    @Column(name = "buyer_whatsapp", length = 20)
+    private String buyerWhatsapp;
+
+    @Column(name = "buyer_email", length = 100)
+    private String buyerEmail;
+
+    @Column(name = "number_of_reservations", nullable = false)
+    private Integer numberOfReservations;
+
+    @OneToMany(mappedBy = "basket")
+    private List<Reservation> reservations;
     @PrePersist
-    public void generateId() {
-
-        if (this.basketId == null) {
+    public void prePersist() {
+        if (this.basketId == null || this.basketId.isBlank()) {
             this.basketId = "basket-" + UUID.randomUUID();
+        }
+
+        if (this.guestUuid == null || this.guestUuid.isBlank()) {
+            this.guestUuid = "guest-" + UUID.randomUUID().toString();
         }
 
         if (this.basketStatus == null) {
@@ -88,30 +90,29 @@ public class Basket {
         if (this.basketTotalAmount == null) {
             this.basketTotalAmount = BigDecimal.ZERO;
         }
+
+        if (this.numberOfReservations == null) {
+            this.numberOfReservations = 0;
+        }
+    }
+    public List<Reservation> getReservations() {
+        return reservations;
     }
 
-    // =========================
-    // GETTERS / SETTERS
-    // =========================
+    public void setReservations(List<Reservation> reservations) {
+        this.reservations = reservations;
+    }
 
     public String getBasketId() {
         return basketId;
-    }
-
-    public Company getCompany() {
-        return company;
     }
 
     public void setBasketId(String basketId) {
         this.basketId = basketId;
     }
 
-    public List<Travel> getTravels() {
-        return travels;
-    }
-
-    public void setTravels(List<Travel> travels) {
-        this.travels = travels;
+    public Company getCompany() {
+        return company;
     }
 
     public void setCompany(Company company) {
@@ -180,5 +181,53 @@ public class Basket {
 
     public void setBasketStatus(BasketStatus basketStatus) {
         this.basketStatus = basketStatus;
+    }
+
+    public List<Travel> getTravels() {
+        return travels;
+    }
+
+    public void setTravels(List<Travel> travels) {
+        this.travels = travels;
+    }
+
+    public String getGuestUuid() {
+        return guestUuid;
+    }
+
+    public void setGuestUuid(String guestUuid) {
+        this.guestUuid = guestUuid;
+    }
+
+    public String getBuyerPhone() {
+        return buyerPhone;
+    }
+
+    public void setBuyerPhone(String buyerPhone) {
+        this.buyerPhone = buyerPhone;
+    }
+
+    public String getBuyerWhatsapp() {
+        return buyerWhatsapp;
+    }
+
+    public void setBuyerWhatsapp(String buyerWhatsapp) {
+        this.buyerWhatsapp = buyerWhatsapp;
+    }
+
+    public String getBuyerEmail() {
+        return buyerEmail;
+    }
+
+    public void setBuyerEmail(String buyerEmail) {
+        this.buyerEmail = buyerEmail;
+    }
+
+    public Integer getNumberOfReservations() {
+        return numberOfReservations;
+    }
+
+    public void setNumberOfReservations(Integer numberOfReservations) {
+        this.numberOfReservations = numberOfReservations;
     }
 }

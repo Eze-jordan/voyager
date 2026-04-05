@@ -24,8 +24,7 @@ public class TravelController {
         Travel created = service.create(
                 req.basketId,
                 req.departureId,
-                req.arrivalId,
-                req.ticketPriceId
+                req.arrivalId
         );
         return ResponseEntity.status(201).body(TravelResponse.fromEntity(created));
     }

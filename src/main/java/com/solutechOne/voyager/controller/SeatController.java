@@ -1,5 +1,6 @@
 package com.solutechOne.voyager.controller;
 
+import com.solutechOne.voyager.dto.SeatRequest;
 import com.solutechOne.voyager.model.Seat;
 import com.solutechOne.voyager.service.SeatService;
 import org.springframework.http.ResponseEntity;
@@ -17,11 +18,10 @@ public class SeatController {
         this.seatService = seatService;
     }
 
+
     @PostMapping
-    public ResponseEntity<Seat> createSeat(@RequestParam String meansId,
-                                           @RequestParam(required = false) String classId,
-                                           @RequestBody Seat seat) {
-        return ResponseEntity.status(201).body(seatService.createSeat(meansId, classId, seat));
+    public ResponseEntity<Seat> createSeat(@RequestBody SeatRequest seatRequest) {
+        return ResponseEntity.status(201).body(seatService.createSeat(seatRequest));
     }
 
     @GetMapping("/{seatId}")

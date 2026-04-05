@@ -32,19 +32,12 @@ public class ReservationController {
                 request.getTicketId()
         );
 
-        // Conversion de la réservation en réponse simplifiée
-        ReservationResponse response = new ReservationResponse(reservation);
-
-        return ResponseEntity.status(201).body(response);
+        return ResponseEntity.status(201).body(new ReservationResponse(reservation));
     }
 
     @GetMapping("/{reference}")
     public ResponseEntity<ReservationResponse> getReservationByReference(@PathVariable String reference) {
         Reservation reservation = reservationService.getReservationByReference(reference);
-
-        // Retour simplifié pour la réponse
-        ReservationResponse response = new ReservationResponse(reservation);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(new ReservationResponse(reservation));
     }
 }

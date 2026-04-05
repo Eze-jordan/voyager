@@ -4,8 +4,6 @@ public class TravelCreateRequest {
     public String basketId;
     public String departureId;
     public String arrivalId;
-    public String ticketPriceId;
-
 
     public String getBasketId() {
         return basketId;
@@ -29,13 +27,5 @@ public class TravelCreateRequest {
 
     public void setArrivalId(String arrivalId) {
         this.arrivalId = arrivalId;
-    }
-
-    public String getTicketPriceId() {
-        return ticketPriceId;
-    }
-
-    public void setTicketPriceId(String ticketPriceId) {
-        this.ticketPriceId = ticketPriceId;
     }
 }

@@ -1,6 +1,7 @@
 package com.solutechOne.voyager.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.solutechOne.voyager.enums.SeatOccupationMode;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -147,6 +148,15 @@ public class Departure {
 
     public LocalTime getDepartureBoardingTime() { return departureBoardingTime; }
     public void setDepartureBoardingTime(LocalTime departureBoardingTime) { this.departureBoardingTime = departureBoardingTime; }
+
+
+
+    public SeatOccupationMode getSeatOccupationMode() {
+        if (means != null) {
+            return means.getSeatOccupationMode();  // Accède au mode d'occupation via TransportMeans
+        }
+        return null;  // Si le TransportMeans est null, retourne null ou un défaut
+    }
 
     public DepartureStatus getDepartureStatus() { return departureStatus; }
     public void setDepartureStatus(DepartureStatus departureStatus) { this.departureStatus = departureStatus; }

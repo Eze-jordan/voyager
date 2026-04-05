@@ -3,6 +3,7 @@ package com.solutechOne.voyager.model;
 import com.solutechOne.voyager.enums.ReservationStatus;
 import com.solutechOne.voyager.enums.Sexe;
 import jakarta.persistence.*;
+
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -11,15 +12,15 @@ import java.util.UUID;
 public class Reservation {
 
     @Id
-    @Column(name = "reservation_id", nullable = false, length = 100)
-    private String reservationId;  // Utilisation de String pour l'UUID
+    @Column(name = "reservation_id", nullable = false, length = 100, updatable = false)
+    private String reservationId;
 
-    @Column(name = "reservation_reference", nullable = false, unique = true, length = 50)
+    @Column(name = "reservation_reference", nullable = false, unique = true, length = 50, updatable = false)
     private String reservationReference;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "travel_id", nullable = false)
-    private Travel travel;  // Référence au voyage
+    private Travel travel;
 
     @Column(name = "passenger_name", nullable = false, length = 50)
     private String passengerName;
@@ -37,36 +38,40 @@ public class Reservation {
     @Column(name = "passenger_nationality", nullable = false, length = 50)
     private String passengerNationality;
 
-    @Column(name = "passenger_mail", length = 50)
+    @Column(name = "passenger_mail", length = 100)
     private String passengerMail;
 
-    @Column(name = "passenger_phone", length = 18)
+    @Column(name = "passenger_phone", length = 20)
     private String passengerPhone;
 
-    @Column(name = "passenger_whatsapp", length = 18)
+    @Column(name = "passenger_whatsapp", length = 20)
     private String passengerWhatsapp;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)
-    private TicketPrice ticketPrice;  // Prix du billet associé à la réservation
-
+    private TicketPrice ticketPrice;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "basket_id", nullable = false)  // Référence vers le panier (Basket)
+    private Basket basket;  // La relation vers Basket
     @Enumerated(EnumType.STRING)
     @Column(name = "reservation_confirmed", nullable = false, length = 10)
     private ReservationStatus reservationConfirmed;
 
     @PrePersist
-    public void generateReservationReference() {
-        if (this.reservationReference == null) {
-            this.reservationReference = "RES-" + UUID.randomUUID().toString();  // Génération d'une référence de réservation unique
+    public void prePersist() {
+        if (this.reservationReference == null || this.reservationReference.isBlank()) {
+            this.reservationReference = "RES-" + UUID.randomUUID().toString();
         }
 
-        // Génération d'un UUID personnalisé pour l'ID de la réservation
-        if (this.reservationId == null) {
-            this.reservationId = "reser-" + UUID.randomUUID().toString();  // Préfixe personnalisé
+        if (this.reservationId == null || this.reservationId.isBlank()) {
+            this.reservationId = "reser-" + UUID.randomUUID().toString();
+        }
+
+        if (this.reservationConfirmed == null) {
+            this.reservationConfirmed = ReservationStatus.NO;
         }
     }
 
-    // Getters et Setters
     public String getReservationId() {
         return reservationId;
     }
@@ -114,7 +119,13 @@ public class Reservation {
     public void setPassengerDateOfBirth(LocalDate passengerDateOfBirth) {
         this.passengerDateOfBirth = passengerDateOfBirth;
     }
+    public Basket getBasket() {
+        return basket;
+    }
 
+    public void setBasket(Basket basket) {
+        this.basket = basket;
+    }
     public Sexe getPassengerSex() {
         return passengerSex;
     }

@@ -1,87 +1,96 @@
 package com.solutechOne.voyager.model;
 
-import com.solutechOne.voyager.enums.Status;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.solutechOne.voyager.enums.TpeStatus;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
-
+import java.util.UUID;
 
 @Entity
 @Table(name = "tpe")
 public class Tpe {
 
     @Id
-    @Column(name = "tpe_id", nullable = false, length = 20)
-    private String id; // Numéro série manuel
+    @Column(name = "tpe_id", length = 20, nullable = false, updatable = false)
+    private String tpeId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // 🔥 RELATION AVEC COMPANY
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-    private String brand;
-    private String model;
+    // 🔥 pour recevoir depuis le body
+    @Transient
+    private String companyId;
 
-    @Column(nullable = false)
-    private String masterKey;
+    @Column(name = "tpe_brand", length = 20, nullable = false)
+    private String tpeBrand;
 
-    private LocalDateTime lastConnection;
+    @Column(name = "tpe_model", length = 20, nullable = false)
+    private String tpeModel;
+
+    @Column(name = "tpe_master_key", length = 10, nullable = false)
+    private String tpeMasterKey;
+
+    @Column(name = "tpe_last_conx")
+    private LocalDateTime tpeLastConx;
 
     @Enumerated(EnumType.STRING)
-    private Status status = Status.ACTIVE;
+    @Column(name = "tpe_status", nullable = false)
+    private TpeStatus tpeStatus;
 
-    public String getId() {
-        return id;
+    // 🔥 génération auto
+    @PrePersist
+    public void generateData() {
+        if (this.tpeId == null) {
+            this.tpeId = "tpe-" + UUID.randomUUID().toString().substring(0, 8);
+        }
+
+        if (this.tpeMasterKey == null) {
+            this.tpeMasterKey = UUID.randomUUID().toString().replace("-", "")
+                    .substring(0, 10).toUpperCase();
+        }
+
+        if (this.tpeStatus == null) {
+            this.tpeStatus = TpeStatus.ACTIF;
+        }
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    // ===== GETTERS =====
 
-    public Company getCompany() {
-        return company;
-    }
+    public String getTpeId() { return tpeId; }
 
-    public void setCompany(Company company) {
-        this.company = company;
-    }
+    public Company getCompany() { return company; }
 
-    public String getBrand() {
-        return brand;
-    }
+    public String getCompanyId() { return companyId; }
 
-    public void setBrand(String brand) {
-        this.brand = brand;
-    }
+    public String getTpeBrand() { return tpeBrand; }
 
-    public String getModel() {
-        return model;
-    }
+    public String getTpeModel() { return tpeModel; }
 
-    public void setModel(String model) {
-        this.model = model;
-    }
+    public String getTpeMasterKey() { return tpeMasterKey; }
 
-    public String getMasterKey() {
-        return masterKey;
-    }
+    public LocalDateTime getTpeLastConx() { return tpeLastConx; }
 
-    public void setMasterKey(String masterKey) {
-        this.masterKey = masterKey;
-    }
+    public TpeStatus getTpeStatus() { return tpeStatus; }
 
-    public LocalDateTime getLastConnection() {
-        return lastConnection;
-    }
+    // ===== SETTERS =====
 
-    public void setLastConnection(LocalDateTime lastConnection) {
-        this.lastConnection = lastConnection;
-    }
+    public void setTpeId(String tpeId) { this.tpeId = tpeId; }
 
-    public Status getStatus() {
-        return status;
-    }
+    public void setCompany(Company company) { this.company = company; }
 
-    public void setStatus(Status status) {
-        this.status = status;
-    }
+    public void setCompanyId(String companyId) { this.companyId = companyId; }
+
+    public void setTpeBrand(String tpeBrand) { this.tpeBrand = tpeBrand; }
+
+    public void setTpeModel(String tpeModel) { this.tpeModel = tpeModel; }
+
+    public void setTpeMasterKey(String tpeMasterKey) { this.tpeMasterKey = tpeMasterKey; }
+
+    public void setTpeLastConx(LocalDateTime tpeLastConx) { this.tpeLastConx = tpeLastConx; }
+
+    public void setTpeStatus(TpeStatus tpeStatus) { this.tpeStatus = tpeStatus; }
 }
-

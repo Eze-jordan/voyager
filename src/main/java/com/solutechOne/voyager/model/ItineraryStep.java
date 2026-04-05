@@ -1,58 +1,47 @@
 package com.solutechOne.voyager.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.UUID;
+
 @Entity
-@Table(
-        name = "itinerary_steps",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uq_itinerary_step_order",
-                        columnNames = {"itinerary_id", "step_order"}
-                ),
-                @UniqueConstraint(
-                        name = "uq_itinerary_step_city",
-                        columnNames = {"itinerary_id", "city_id"}
-                )
-        },
-        indexes = {
-                @Index(name = "idx_itinerary_steps_itinerary", columnList = "itinerary_id"),
-                @Index(name = "idx_itinerary_steps_city", columnList = "city_id")
-        }
-)
+@Table(name = "itinerary_steps")
 public class ItineraryStep {
 
     @Id
-    @Column(name = "step_id", nullable = false, length = 100)
-    private String id;
+    @Column(name = "step_id", nullable = false, updatable = false)
+    private String stepId;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JsonBackReference
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "itinerary_id", nullable = false)
     private Itinerary itinerary;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "city_id", nullable = false)
-    private City city;
+
+    @Column(name = "step_city_name", length = 150)
+    private String stepCityName;
 
     @NotNull
     @Min(1)
     @Column(name = "step_order", nullable = false)
     private Integer stepOrder;
 
-    /* =========================
-       Getters & Setters
-       ========================= */
-
-    public String getId() {
-        return id;
+    @PrePersist
+    public void generateId() {
+        if (this.stepId == null || this.stepId.isBlank()) {
+            this.stepId = "step-" + UUID.randomUUID();
+        }
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public String getStepId() {
+        return stepId;
+    }
+
+    public void setStepId(String stepId) {
+        this.stepId = stepId;
     }
 
     public Itinerary getItinerary() {
@@ -63,12 +52,14 @@ public class ItineraryStep {
         this.itinerary = itinerary;
     }
 
-    public City getCity() {
-        return city;
+
+
+    public String getStepCityName() {
+        return stepCityName;
     }
 
-    public void setCity(City city) {
-        this.city = city;
+    public void setStepCityName(String stepCityName) {
+        this.stepCityName = stepCityName;
     }
 
     public Integer getStepOrder() {

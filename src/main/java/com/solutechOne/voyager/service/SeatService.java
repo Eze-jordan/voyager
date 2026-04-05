@@ -1,5 +1,6 @@
 package com.solutechOne.voyager.service;
 
+import com.solutechOne.voyager.dto.SeatRequest;
 import com.solutechOne.voyager.model.Seat;
 import com.solutechOne.voyager.model.TransportMeans;
 import com.solutechOne.voyager.model.TravelClass;
@@ -8,6 +9,7 @@ import com.solutechOne.voyager.repositories.TransportMeansRepository;
 import com.solutechOne.voyager.repositories.TravelClassRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +45,10 @@ public class SeatService {
         return String.format("%02d%c", row, col);
     }
 
-    public Seat createSeat(String meansId, String classId, Seat seat) {
+    public Seat createSeat(SeatRequest seatRequest) {
+        String meansId = seatRequest.getMeansId();
+        String classId = seatRequest.getClassId();
+        Seat seat = seatRequest.getSeat();
 
         if (meansId == null || meansId.isBlank()) {
             throw new RuntimeException("meansId est obligatoire");

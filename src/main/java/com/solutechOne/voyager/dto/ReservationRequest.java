@@ -16,7 +16,6 @@ public class ReservationRequest {
     private String passengerPhone;
     private String passengerWhatsapp;
     private String ticketId;
-    private String reservationReference;
 
     public String getTravelId() {
         return travelId;
@@ -96,15 +95,5 @@ public class ReservationRequest {
 
     public void setTicketId(String ticketId) {
         this.ticketId = ticketId;
-    }
-
-    // Getters and setters
-
-    public String getReservationReference() {
-        return reservationReference;
-    }
-
-    public void setReservationReference(String reservationReference) {
-        this.reservationReference = reservationReference;
     }
 }

@@ -1,6 +1,7 @@
 package com.solutechOne.voyager.controller;
 
 import com.solutechOne.voyager.dto.BasketAmountRequest;
+import com.solutechOne.voyager.dto.BasketCreateRequest;
 import com.solutechOne.voyager.dto.BasketPayRequest;
 import com.solutechOne.voyager.dto.BasketResponse;
 import com.solutechOne.voyager.model.Basket;
@@ -21,8 +22,13 @@ public class BasketController {
     }
 
     @PostMapping
-    public ResponseEntity<BasketResponse> create(@RequestParam String companyId) {
-        Basket created = service.create(companyId);
+    public ResponseEntity<BasketResponse> create(@RequestBody BasketCreateRequest req) {
+        Basket created = service.create(
+                req.companyId,
+                req.buyerPhone,
+                req.buyerWhatsapp,
+                req.buyerEmail
+        );
         return ResponseEntity.status(201).body(BasketResponse.fromEntity(created));
     }
 
