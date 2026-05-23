@@ -1,6 +1,14 @@
 package com.solutechOne.voyager.enums;
 
 public enum PaymentStatus {
-
-    TERMINE, ANNULE
+    CREATED,
+    KYC_PENDING,
+    KYC_OK,
+    KYC_FAILED,
+    INITIATED,
+    PENDING,
+    SUCCESS,
+    FAILED,
+    CANCELLED,
+    EXPIRED
 }

@@ -20,4 +20,10 @@ public interface TicketPriceRepository extends JpaRepository<TicketPrice, String
     boolean existsByCompany_CompanyIdAndTravelClass_ClassIdAndDepartureCity_CityIdAndArrivalCity_CityIdAndTicketTitle(
             String companyId, String classId, String depCityId, String arrCityId, String ticketTitle
     );
+    List<TicketPrice> findByDepartureCity_CityIdOrArrivalCity_CityId(
+            String departureCityId,
+            String arrivalCityId
+    );
+
+
 }

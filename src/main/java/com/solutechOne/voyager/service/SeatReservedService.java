@@ -7,6 +7,7 @@ import com.solutechOne.voyager.model.Departure;
 import com.solutechOne.voyager.model.Reservation;
 import com.solutechOne.voyager.model.Seat;
 import com.solutechOne.voyager.model.SeatReserved;
+import com.solutechOne.voyager.model.TicketPrice;
 import com.solutechOne.voyager.model.Travel;
 import com.solutechOne.voyager.repositories.DepartureRepository;
 import com.solutechOne.voyager.repositories.ReservationRepository;
@@ -37,10 +38,6 @@ public class SeatReservedService {
         this.reservationRepository = reservationRepository;
     }
 
-    // =========================
-    // INITIALIZE SEATS FOR DEPARTURE
-    // =========================
-
     @Transactional
     public void initializeSeatsForDeparture(String departureId, List<Seat> seats) {
         if (departureId == null || departureId.isBlank()) {
@@ -64,23 +61,19 @@ public class SeatReservedService {
                     .isPresent();
 
             if (exists) {
-                continue; // Si le siège est déjà réservé, on continue avec le suivant.
+                continue;
             }
 
             SeatReserved sr = new SeatReserved();
             sr.setDeparture(departure);
             sr.setSeat(seat);
             sr.setReservation(null);
-            sr.setReservedStatus(SeatReservationStatus.LIBRE); // Libre au départ
-            sr.setBoardingConfirmed(BoardingConfirmed.NO); // Pas encore confirmé
+            sr.setReservedStatus(SeatReservationStatus.LIBRE);
+            sr.setBoardingConfirmed(BoardingConfirmed.NO);
 
             seatReservedRepository.save(sr);
         }
     }
-
-    // =========================
-    // GET SEATS BY DEPARTURE
-    // =========================
 
     public List<SeatReserved> getByDeparture(String departureId) {
         if (departureId == null || departureId.isBlank()) {
@@ -89,10 +82,6 @@ public class SeatReservedService {
 
         return seatReservedRepository.findByDeparture_DepartureId(departureId);
     }
-
-    // =========================
-    // ASSIGN SEAT TO RESERVATION
-    // =========================
 
     @Transactional
     public SeatReserved assignSeat(String reservationId, String seatId) {
@@ -107,57 +96,63 @@ public class SeatReservedService {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new RuntimeException("Reservation not found: " + reservationId));
 
-        Travel travel = reservation.getTravel();
-        if (travel == null || travel.getDeparture() == null) {
-            throw new IllegalStateException("Reservation is not linked to a valid departure");
-        }
+        Departure departure = getDepartureFromReservation(reservation);
+        String classId = getClassIdFromReservation(reservation);
 
-        String departureId = travel.getDeparture().getDepartureId();
-
-        // On récupère le mode d'occupation des sièges pour ce départ
-        SeatOccupationMode mode = travel.getDeparture().getSeatOccupationMode();
-
-        SeatReserved seatReserved = null;
-
-        if (mode == SeatOccupationMode.RANDOM) {
-            seatReserved = assignSeatRandomly(departureId, reservationId);
-        } else if (mode == SeatOccupationMode.NUMBERED) {
-            seatReserved = assignSeatNumbered(departureId, reservationId);
-        }
-
-        return seatReserved;
-    }
-
-    private SeatReserved assignSeatRandomly(String departureId, String reservationId) {
         SeatReserved seatReserved = seatReservedRepository
-                .findFirstByDeparture_DepartureIdAndReservedStatusOrderBySeat_SeatOrderNumberAsc(
-                        departureId, SeatReservationStatus.LIBRE)
-                .orElseThrow(() -> new RuntimeException("No available seats for random assignment"));
+                .findByDeparture_DepartureIdAndSeat_SeatIdAndSeat_TravelClass_ClassId(
+                        departure.getDepartureId(),
+                        seatId,
+                        classId
+                )
+                .orElseThrow(() -> new RuntimeException(
+                        "Seat not found, not available for this departure, or does not match the ticket class"
+                ));
+
+        if (seatReserved.getReservedStatus() != SeatReservationStatus.LIBRE) {
+            throw new IllegalStateException("This seat is already reserved");
+        }
 
         seatReserved.setReservedStatus(SeatReservationStatus.RESERVE);
-        seatReserved.setReservation(reservationRepository.findById(reservationId).orElseThrow());
+        seatReserved.setReservation(reservation);
         seatReserved.setBoardingConfirmed(BoardingConfirmed.NO);
 
         return seatReservedRepository.save(seatReserved);
     }
 
-    private SeatReserved assignSeatNumbered(String departureId, String reservationId) {
-        // Ici, on attribue les sièges numérotés dans l'ordre disponible
+    @Transactional
+    public SeatReserved autoAssignSeat(Reservation reservation) {
+        if (reservation == null) {
+            throw new IllegalArgumentException("reservation is required");
+        }
+
+        Departure departure = getDepartureFromReservation(reservation);
+        String classId = getClassIdFromReservation(reservation);
+
+        if (departure.getSeatOccupationMode() == SeatOccupationMode.RANDOM) {
+            return assignSeatByClass(departure.getDepartureId(), reservation, classId);
+        }
+
+        return assignSeatByClass(departure.getDepartureId(), reservation, classId);
+    }
+
+    private SeatReserved assignSeatByClass(String departureId, Reservation reservation, String classId) {
         SeatReserved seatReserved = seatReservedRepository
-                .findFirstByDeparture_DepartureIdAndReservedStatusOrderBySeat_SeatOrderNumberAsc(
-                        departureId, SeatReservationStatus.LIBRE)
-                .orElseThrow(() -> new RuntimeException("No available seats for numbered assignment"));
+                .findFirstByDeparture_DepartureIdAndReservedStatusAndSeat_TravelClass_ClassIdOrderBySeat_SeatOrderNumberAsc(
+                        departureId,
+                        SeatReservationStatus.LIBRE,
+                        classId
+                )
+                .orElseThrow(() -> new RuntimeException(
+                        "No available seat for the selected ticket class"
+                ));
 
         seatReserved.setReservedStatus(SeatReservationStatus.RESERVE);
-        seatReserved.setReservation(reservationRepository.findById(reservationId).orElseThrow());
+        seatReserved.setReservation(reservation);
         seatReserved.setBoardingConfirmed(BoardingConfirmed.NO);
 
         return seatReservedRepository.save(seatReserved);
     }
-
-    // =========================
-    // CONFIRM BOARDING
-    // =========================
 
     @Transactional
     public SeatReserved confirmBoarding(String reservationId) {
@@ -176,9 +171,6 @@ public class SeatReservedService {
         return seatReservedRepository.save(seatReserved);
     }
 
-    // =========================
-    // CANCEL SEAT ASSIGNMENT
-    // =========================
     @Transactional
     public SeatReserved cancelSeatAssignment(String reservationId) {
         if (reservationId == null || reservationId.isBlank()) {
@@ -195,30 +187,23 @@ public class SeatReservedService {
         return seatReservedRepository.save(seatReserved);
     }
 
-    // =========================
-    // AUTO-ASSIGN SEAT
-    // =========================
-
-    @Transactional
-    public SeatReserved autoAssignSeat(Reservation reservation) {
-        if (reservation == null) {
-            throw new IllegalArgumentException("reservation is required");
-        }
-
+    private Departure getDepartureFromReservation(Reservation reservation) {
         Travel travel = reservation.getTravel();
 
         if (travel == null || travel.getDeparture() == null) {
-            throw new IllegalStateException("Reservation is not linked to a departure");
+            throw new IllegalStateException("Reservation is not linked to a valid departure");
         }
 
-        Departure departure = travel.getDeparture();
+        return travel.getDeparture();
+    }
 
-        // Si le mode est RANDOM, on attribue un siège aléatoire
-        if (departure.getSeatOccupationMode() == SeatOccupationMode.RANDOM) {
-            return assignSeatRandomly(departure.getDepartureId(), reservation.getReservationId());
+    private String getClassIdFromReservation(Reservation reservation) {
+        TicketPrice ticketPrice = reservation.getTicketPrice();
+
+        if (ticketPrice == null || ticketPrice.getTravelClass() == null) {
+            throw new IllegalStateException("Reservation ticket price has no class");
         }
 
-        // Si le mode est NUMBERED, on attribue le premier siège disponible numériquement
-        return assignSeatNumbered(departure.getDepartureId(), reservation.getReservationId());
+        return ticketPrice.getTravelClass().getClassId();
     }
 }

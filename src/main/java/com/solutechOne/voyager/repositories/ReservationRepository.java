@@ -13,4 +13,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
 
 
     List<Reservation> findByTravel_Basket_BasketId(String basketId);
+    List<Reservation> findByBasket_BasketId(String basketId);
+
 }

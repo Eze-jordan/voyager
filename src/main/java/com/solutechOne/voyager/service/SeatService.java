@@ -1,5 +1,6 @@
 package com.solutechOne.voyager.service;
 
+import com.solutechOne.voyager.dto.SeatClassRangeRequest;
 import com.solutechOne.voyager.dto.SeatRequest;
 import com.solutechOne.voyager.model.Seat;
 import com.solutechOne.voyager.model.TransportMeans;
@@ -9,7 +10,6 @@ import com.solutechOne.voyager.repositories.TransportMeansRepository;
 import com.solutechOne.voyager.repositories.TravelClassRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,7 +36,6 @@ public class SeatService {
         return "seat-" + UUID.randomUUID();
     }
 
-    // ✅ Bus classique: 6 sièges par rangée (A..F)
     private String generateSeatReference(int seatOrderNumber) {
         int seatsPerRow = 6;
         int row = (seatOrderNumber - 1) / seatsPerRow + 1;
@@ -70,18 +69,15 @@ public class SeatService {
         seat.setMeans(means);
         seat.setTravelClass(travelClass);
 
-        // Auto seatOrderNumber si manquant
         if (seat.getSeatOrderNumber() == null) {
             int nextOrder = seatRepository.countByMeans_MeansId(meansId) + 1;
             seat.setSeatOrderNumber(nextOrder);
         }
 
-        // Bloquer si dépasse totalSeat
         if (means.getTotalSeat() != null && seat.getSeatOrderNumber() > means.getTotalSeat()) {
             throw new RuntimeException("Impossible: seatOrderNumber dépasse totalSeat (" + means.getTotalSeat() + ")");
         }
 
-        // Auto seatReference si manquant
         if (seat.getSeatReference() == null || seat.getSeatReference().isBlank()) {
             seat.setSeatReference(generateSeatReference(seat.getSeatOrderNumber()));
         }
@@ -90,10 +86,10 @@ public class SeatService {
             seat.setSeatStatus(Seat.SeatStatus.ACTIF);
         }
 
-        // Anti-doublons
         if (seatRepository.existsByMeans_MeansIdAndSeatOrderNumber(meansId, seat.getSeatOrderNumber())) {
             throw new RuntimeException("seatOrderNumber déjà utilisé pour ce moyen de transport");
         }
+
         if (seatRepository.existsByMeans_MeansIdAndSeatReference(meansId, seat.getSeatReference())) {
             throw new RuntimeException("seatReference déjà utilisée pour ce moyen de transport");
         }
@@ -133,11 +129,15 @@ public class SeatService {
     }
 
     @Transactional
-    public String generateSeats(String meansId, Integer totalSeats, String classId,
-                                SeatGenerationMode mode, boolean reset) {
+    public String generateSeats(String meansId, Integer totalSeats, String classId, SeatGenerationMode mode) {
 
-        if (meansId == null || meansId.isBlank()) throw new RuntimeException("meansId est obligatoire");
-        if (mode == null) throw new RuntimeException("mode est obligatoire (RANDOM ou NUMBERED)");
+        if (meansId == null || meansId.isBlank()) {
+            throw new RuntimeException("meansId est obligatoire");
+        }
+
+        if (mode == null) {
+            throw new RuntimeException("mode est obligatoire (RANDOM ou NUMBERED)");
+        }
 
         TransportMeans means = transportMeansRepository.findById(meansId)
                 .orElseThrow(() -> new RuntimeException("TransportMeans introuvable : " + meansId));
@@ -148,41 +148,144 @@ public class SeatService {
                     .orElseThrow(() -> new RuntimeException("TravelClass introuvable : " + classId));
         }
 
-        int seatsToCreate = (totalSeats != null) ? totalSeats :
-                (means.getTotalSeat() != null ? means.getTotalSeat() : 0);
+        int maxSeats = totalSeats != null ? totalSeats :
+                means.getTotalSeat() != null ? means.getTotalSeat() : 0;
 
-        if (seatsToCreate <= 0) throw new RuntimeException("totalSeats doit être > 0");
-
-        if (means.getTotalSeat() != null && seatsToCreate > means.getTotalSeat()) {
-            throw new RuntimeException("totalSeats (" + seatsToCreate + ") dépasse totalSeat (" + means.getTotalSeat() + ")");
+        if (maxSeats <= 0) {
+            throw new RuntimeException("totalSeats doit être > 0");
         }
 
-        if (reset && seatRepository.existsByMeans_MeansId(meansId)) {
-            seatRepository.deleteByMeans_MeansId(meansId);
+        if (means.getTotalSeat() != null && maxSeats > means.getTotalSeat()) {
+            throw new RuntimeException("totalSeats (" + maxSeats + ") dépasse totalSeat (" + means.getTotalSeat() + ")");
         }
 
         if (mode == SeatGenerationMode.RANDOM) {
-            return "Mode RANDOM: aucun siège généré (places non numérotées).";
+            return "Mode RANDOM: aucun siège généré.";
         }
 
-        int startOrder = seatRepository.countByMeans_MeansId(meansId) + 1;
-        int existing = startOrder - 1;
+        int created = 0;
+        int skipped = 0;
 
-        if (!reset && existing >= seatsToCreate) {
-            return "Déjà " + existing + " sièges existants. Aucun siège généré.";
-        }
+        for (int order = 1; order <= maxSeats; order++) {
 
-        for (int order = startOrder; order <= seatsToCreate; order++) {
+            String reference = generateSeatReference(order);
+
+            boolean orderExists = seatRepository.existsByMeans_MeansIdAndSeatOrderNumber(meansId, order);
+            boolean referenceExists = seatRepository.existsByMeans_MeansIdAndSeatReference(meansId, reference);
+
+            if (orderExists || referenceExists) {
+                skipped++;
+                continue;
+            }
+
             Seat seat = new Seat();
             seat.setSeatId(generateSeatId());
             seat.setMeans(means);
             seat.setTravelClass(travelClass);
             seat.setSeatOrderNumber(order);
-            seat.setSeatReference(generateSeatReference(order));
+            seat.setSeatReference(reference);
             seat.setSeatStatus(Seat.SeatStatus.ACTIF);
+
             seatRepository.save(seat);
+            created++;
         }
 
-        return "Mode NUMBERED: sièges générés jusqu'à " + seatsToCreate + " place(s).";
+        return "Génération terminée : " + created + " siège(s) créé(s), " + skipped + " siège(s) déjà existant(s).";
+    }
+
+    @Transactional
+    public String assignSeatClassesByRange(String meansId, List<SeatClassRangeRequest> ranges) {
+        if (meansId == null || meansId.isBlank()) {
+            throw new RuntimeException("meansId est obligatoire");
+        }
+
+        TransportMeans means = transportMeansRepository.findById(meansId)
+                .orElseThrow(() -> new RuntimeException("TransportMeans introuvable : " + meansId));
+
+        if (ranges == null || ranges.isEmpty()) {
+            throw new RuntimeException("La liste des plages de classes est obligatoire");
+        }
+
+        for (SeatClassRangeRequest range : ranges) {
+            if (range.getStartOrder() == null || range.getEndOrder() == null) {
+                throw new RuntimeException("startOrder et endOrder sont obligatoires");
+            }
+
+            if (range.getClassId() == null || range.getClassId().isBlank()) {
+                throw new RuntimeException("classId est obligatoire");
+            }
+
+            if (range.getStartOrder() <= 0 || range.getEndOrder() < range.getStartOrder()) {
+                throw new RuntimeException("Plage invalide : startOrder/endOrder");
+            }
+
+            if (means.getTotalSeat() != null && range.getEndOrder() > means.getTotalSeat()) {
+                throw new RuntimeException("La plage dépasse totalSeat (" + means.getTotalSeat() + ")");
+            }
+
+            TravelClass travelClass = travelClassRepository.findById(range.getClassId())
+                    .orElseThrow(() -> new RuntimeException("TravelClass introuvable : " + range.getClassId()));
+
+            List<Seat> seats = seatRepository.findByMeans_MeansId(meansId)
+                    .stream()
+                    .filter(seat -> seat.getSeatOrderNumber() != null)
+                    .filter(seat -> seat.getSeatOrderNumber() >= range.getStartOrder()
+                            && seat.getSeatOrderNumber() <= range.getEndOrder())
+                    .toList();
+
+            for (Seat seat : seats) {
+                seat.setTravelClass(travelClass);
+                seatRepository.save(seat);
+            }
+        }
+
+        return "Classes des sièges mises à jour avec succès";
+    }
+
+    @Transactional
+    public Seat createManualSeat(String meansId, String classId, Integer seatOrderNumber, String seatReference) {
+
+        if (meansId == null || meansId.isBlank()) {
+            throw new RuntimeException("meansId est obligatoire");
+        }
+
+        TransportMeans means = transportMeansRepository.findById(meansId)
+                .orElseThrow(() -> new RuntimeException("TransportMeans introuvable : " + meansId));
+
+        TravelClass travelClass = null;
+        if (classId != null && !classId.isBlank()) {
+            travelClass = travelClassRepository.findById(classId)
+                    .orElseThrow(() -> new RuntimeException("TravelClass introuvable : " + classId));
+        }
+
+        if (seatOrderNumber == null || seatOrderNumber <= 0) {
+            throw new RuntimeException("seatOrderNumber doit être > 0");
+        }
+
+        if (means.getTotalSeat() != null && seatOrderNumber > means.getTotalSeat()) {
+            throw new RuntimeException("seatOrderNumber dépasse totalSeat (" + means.getTotalSeat() + ")");
+        }
+
+        if (seatReference == null || seatReference.isBlank()) {
+            seatReference = generateSeatReference(seatOrderNumber);
+        }
+
+        if (seatRepository.existsByMeans_MeansIdAndSeatOrderNumber(meansId, seatOrderNumber)) {
+            throw new RuntimeException("seatOrderNumber déjà utilisé pour ce moyen de transport");
+        }
+
+        if (seatRepository.existsByMeans_MeansIdAndSeatReference(meansId, seatReference)) {
+            throw new RuntimeException("seatReference déjà utilisée pour ce moyen de transport");
+        }
+
+        Seat seat = new Seat();
+        seat.setSeatId(generateSeatId());
+        seat.setMeans(means);
+        seat.setTravelClass(travelClass);
+        seat.setSeatOrderNumber(seatOrderNumber);
+        seat.setSeatReference(seatReference);
+        seat.setSeatStatus(Seat.SeatStatus.ACTIF);
+
+        return seatRepository.save(seat);
     }
 }

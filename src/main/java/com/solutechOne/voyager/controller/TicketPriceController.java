@@ -2,6 +2,8 @@ package com.solutechOne.voyager.controller;
 
 import com.solutechOne.voyager.model.TicketPrice;
 import com.solutechOne.voyager.service.TicketPriceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/V1/ticket-prices")
+@Tag(name = "Ticket Prices", description = "Gestion des prix des tickets")
 public class TicketPriceController {
 
     private final TicketPriceService service;
@@ -21,6 +24,7 @@ public class TicketPriceController {
     // =========================
     // CREATE
     // =========================
+    @Operation(summary = "Créer un prix de ticket")
     @PostMapping
     public ResponseEntity<TicketPrice> create(@RequestBody TicketPrice ticketPrice) {
         TicketPrice created = service.create(ticketPrice);
@@ -30,6 +34,7 @@ public class TicketPriceController {
     // =========================
     // GET BY ID
     // =========================
+    @Operation(summary = "Obtenir un prix de ticket par ID")
     @GetMapping("/{id}")
     public ResponseEntity<TicketPrice> getById(@PathVariable String id) {
         return ResponseEntity.ok(service.getById(id));
@@ -38,6 +43,7 @@ public class TicketPriceController {
     // =========================
     // GET ALL
     // =========================
+    @Operation(summary = "Obtenir tous les prix de tickets")
     @GetMapping
     public ResponseEntity<List<TicketPrice>> getAll() {
         return ResponseEntity.ok(service.getAll());
@@ -46,6 +52,7 @@ public class TicketPriceController {
     // =========================
     // GET BY COMPANY
     // =========================
+    @Operation(summary = "Obtenir les prix de tickets par compagnie")
     @GetMapping("/company/{companyId}")
     public ResponseEntity<List<TicketPrice>> getByCompany(@PathVariable String companyId) {
         return ResponseEntity.ok(service.getByCompany(companyId));
@@ -54,6 +61,7 @@ public class TicketPriceController {
     // =========================
     // GET BY ROUTE
     // =========================
+    @Operation(summary = "Obtenir les prix de tickets par trajet")
     @GetMapping("/route")
     public ResponseEntity<List<TicketPrice>> getByRoute(
             @RequestParam String departureCityId,
@@ -65,6 +73,7 @@ public class TicketPriceController {
     // =========================
     // UPDATE
     // =========================
+    @Operation(summary = "Modifier un prix de ticket")
     @PutMapping("/{id}")
     public ResponseEntity<TicketPrice> update(
             @PathVariable String id,
@@ -77,6 +86,7 @@ public class TicketPriceController {
     // =========================
     // DELETE
     // =========================
+    @Operation(summary = "Supprimer un prix de ticket")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         service.delete(id);
@@ -86,6 +96,7 @@ public class TicketPriceController {
     // =========================
     // CALCUL FINAL PRICE
     // =========================
+    @Operation(summary = "Calculer le prix final d’un ticket")
     @GetMapping("/{id}/final-price")
     public ResponseEntity<BigDecimal> calculateFinalPrice(@PathVariable String id) {
         return ResponseEntity.ok(service.calculateFinalPrice(id));

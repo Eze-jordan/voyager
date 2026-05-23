@@ -2,8 +2,11 @@ package com.solutechOne.voyager.controller;
 
 import com.solutechOne.voyager.dto.TravelCreateRequest;
 import com.solutechOne.voyager.dto.TravelResponse;
+import com.solutechOne.voyager.dto.TravelWithTicketsResponse;
 import com.solutechOne.voyager.model.Travel;
 import com.solutechOne.voyager.service.TravelService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,6 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/V1/travels")
+@Tag(name = "Travels", description = "Gestion des voyages")
 public class TravelController {
 
     private final TravelService service;
@@ -19,6 +23,7 @@ public class TravelController {
         this.service = service;
     }
 
+/*
     @PostMapping
     public ResponseEntity<TravelResponse> create(@RequestBody TravelCreateRequest req) {
         Travel created = service.create(
@@ -28,12 +33,25 @@ public class TravelController {
         );
         return ResponseEntity.status(201).body(TravelResponse.fromEntity(created));
     }
+    */
 
+    @Operation(summary = "Créer un voyage et retourner les tickets")
+    @PostMapping
+    public TravelWithTicketsResponse create(@RequestBody TravelCreateRequest request) {
+        return service.createAndReturnTickets(
+                request.getBasketId(),
+                request.getDepartureId(),
+                request.getArrivalId()
+        );
+    }
+
+    @Operation(summary = "Obtenir un voyage par ID")
     @GetMapping("/{id}")
     public ResponseEntity<TravelResponse> getById(@PathVariable("id") String travelId) {
         return ResponseEntity.ok(TravelResponse.fromEntity(service.getById(travelId)));
     }
 
+    @Operation(summary = "Obtenir les voyages par panier")
     @GetMapping
     public ResponseEntity<List<TravelResponse>> getByBasket(@RequestParam String basketId) {
         List<TravelResponse> res = service.getByBasket(basketId)
@@ -43,6 +61,7 @@ public class TravelController {
         return ResponseEntity.ok(res);
     }
 
+    @Operation(summary = "Supprimer un voyage")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") String travelId) {
         service.delete(travelId);

@@ -2,11 +2,14 @@ package com.solutechOne.voyager.controller;
 
 import com.solutechOne.voyager.model.Passenger;
 import com.solutechOne.voyager.service.PassengerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/V1/passengers")
+@Tag(name = "Passengers", description = "Gestion des passagers")
 public class PassengerController {
 
     private final PassengerService passengerService;
@@ -16,6 +19,7 @@ public class PassengerController {
     }
 
     // Créer un passager
+    @Operation(summary = "Créer un passager")
     @PostMapping
     public ResponseEntity<Passenger> createPassenger(@RequestBody PassengerRequest request) {
         Passenger createdPassenger = passengerService.createPassenger(
@@ -31,6 +35,7 @@ public class PassengerController {
     }
 
     // Obtenir un passager par son ID
+    @Operation(summary = "Obtenir un passager par son ID")
     @GetMapping("/{id}")
     public ResponseEntity<Passenger> getPassengerById(@PathVariable("id") String passengerId) {
         Passenger passenger = passengerService.getPassengerById(passengerId);
@@ -38,6 +43,7 @@ public class PassengerController {
     }
 
     // Obtenir un passager par son email
+    @Operation(summary = "Obtenir un passager par son email")
     @GetMapping("/email/{email}")
     public ResponseEntity<Passenger> getPassengerByEmail(@PathVariable("email") String email) {
         Passenger passenger = passengerService.getPassengerByEmail(email);

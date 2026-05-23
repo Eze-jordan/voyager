@@ -14,12 +14,12 @@ public class SwaggerConfig {
     private static final String SECURITY_SCHEME_NAME = "bearerAuth";
 
     @Bean
-    public OpenAPI monBonDocteurOpenAPI() {
+    public OpenAPI VoyageurOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("MON BON DOCTEUR API")
+                        .title("VOYAGEUR API")
                         .version("1.0.0")
-                        .description("API pour la gestion des rendez-vous, structures sanitaires, médecins et utilisateurs."))
+                        .description("API pour la gestion des reservations de voyages."))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEME_NAME,

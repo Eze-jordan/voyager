@@ -25,4 +25,15 @@ public interface SeatReservedRepository extends JpaRepository<SeatReserved, Stri
             String departureId,
             SeatReservationStatus status
     );
+    Optional<SeatReserved> findFirstByDeparture_DepartureIdAndReservedStatusAndSeat_TravelClass_ClassIdOrderBySeat_SeatOrderNumberAsc(
+            String departureId,
+            SeatReservationStatus reservedStatus,
+            String classId
+    );
+
+    Optional<SeatReserved> findByDeparture_DepartureIdAndSeat_SeatIdAndSeat_TravelClass_ClassId(
+            String departureId,
+            String seatId,
+            String classId
+    );
 }

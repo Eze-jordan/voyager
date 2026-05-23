@@ -26,7 +26,7 @@ public class CompanyController {
     }
 
     @PostMapping("/create")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')") // adapte à ton enum Role
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     @Operation(summary = "Create a company account")
     public ResponseEntity<CompanyDTO> create(@Valid @RequestBody CompanyDTO body) {
         CompanyDTO created = companyService.create(body);
@@ -50,7 +50,7 @@ public class CompanyController {
     }
 
     @PatchMapping("/{id}")
-    @Operation(summary = "Update company (partial)")
+    @Operation(summary = "Update company partially")
     public ResponseEntity<CompanyDTO> patch(@PathVariable String id, @RequestBody CompanyDTO body) {
         return ResponseEntity.ok(companyService.patch(id, body));
     }
@@ -84,9 +84,10 @@ public class CompanyController {
         companyService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
     @PutMapping("/{id}/archive")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN')")
-    @Operation(summary = "Archiver une compagnie (soft delete)")
+    @Operation(summary = "Archiver une compagnie")
     public ResponseEntity<Map<String, String>> archive(@PathVariable String id) {
         return ResponseEntity.ok(companyService.archive(id));
     }
@@ -97,6 +98,8 @@ public class CompanyController {
     public ResponseEntity<Map<String, String>> unarchive(@PathVariable String id) {
         return ResponseEntity.ok(companyService.unarchive(id));
     }
+
+    @Operation(summary = "Uploader le logo d’une compagnie")
     @PostMapping("/{id}/logo")
     public ResponseEntity<CompanyDTO> uploadLogo(
             @PathVariable String id,

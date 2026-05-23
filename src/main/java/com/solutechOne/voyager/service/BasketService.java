@@ -18,7 +18,7 @@ public class BasketService {
 
     private final BasketRepository basketRepository;
     private final CompanyRepository companyRepository;
-    private final TicketPriceService ticketPriceService;  // Service pour calculer le prix final des billets
+    private final TicketPriceService ticketPriceService;
 
     public BasketService(BasketRepository basketRepository,
                          CompanyRepository companyRepository,
@@ -38,12 +38,9 @@ public class BasketService {
         basket.setBuyerWhatsapp(normalize(buyerWhatsapp));
         basket.setBuyerEmail(normalize(buyerEmail));
         basket.setNumberOfReservations(0);
+        basket.setBasketStatus(BasketStatus.EN_COURS);
 
         return basketRepository.save(basket);
-    }
-
-    private String normalize(String value) {
-        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     public Basket getById(String basketId) {
@@ -62,6 +59,10 @@ public class BasketService {
             throw new IllegalStateException("Cannot update a paid basket");
         }
 
+        if (basket.getBasketStatus() == BasketStatus.PAYMENT_PENDING) {
+            throw new IllegalStateException("Cannot update a basket with payment in progress");
+        }
+
         if (newAmount == null || newAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("basketAmount must be >= 0");
         }
@@ -72,16 +73,30 @@ public class BasketService {
         return basketRepository.save(basket);
     }
 
-    public Basket pay(String basketId, String paymentService, String paymentId, String paymentAccount) {
+    public Basket markPaymentPending(String basketId, String paymentService, String paymentId, String paymentAccount) {
         Basket basket = getById(basketId);
 
         if (basket.getBasketStatus() == BasketStatus.PAYE) {
-            return basket;
+            throw new IllegalStateException("Basket is already paid");
         }
 
         if (basket.getBasketAmount() == null || basket.getBasketAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalStateException("Cannot pay a basket with amount <= 0");
+            throw new IllegalStateException("Cannot initiate payment for basket amount <= 0");
         }
+
+        recalcFeesAndTotal(basket);
+
+        basket.setBasketPaymentService(paymentService);
+        basket.setBasketPaymentId(paymentId);
+        basket.setBasketPaymentAccount(paymentAccount);
+        basket.setBasketPaymentDate(LocalDateTime.now());
+        basket.setBasketStatus(BasketStatus.PAYMENT_PENDING);
+
+        return basketRepository.save(basket);
+    }
+
+    public Basket markPaidByCallback(String basketId, String paymentService, String paymentId, String paymentAccount) {
+        Basket basket = getById(basketId);
 
         recalcFeesAndTotal(basket);
 
@@ -94,11 +109,26 @@ public class BasketService {
         return basketRepository.save(basket);
     }
 
+    public Basket markPaymentFailed(String basketId) {
+        Basket basket = getById(basketId);
+
+        if (basket.getBasketStatus() == BasketStatus.PAYE) {
+            return basket;
+        }
+
+        basket.setBasketStatus(BasketStatus.EN_COURS);
+        return basketRepository.save(basket);
+    }
+
     public Basket abandon(String basketId) {
         Basket basket = getById(basketId);
 
         if (basket.getBasketStatus() == BasketStatus.PAYE) {
             throw new IllegalStateException("Cannot abandon a paid basket");
+        }
+
+        if (basket.getBasketStatus() == BasketStatus.PAYMENT_PENDING) {
+            throw new IllegalStateException("Cannot abandon a basket with payment in progress");
         }
 
         basket.setBasketStatus(BasketStatus.ABANDONNE);
@@ -112,25 +142,29 @@ public class BasketService {
             throw new IllegalStateException("Cannot delete a paid basket");
         }
 
+        if (basket.getBasketStatus() == BasketStatus.PAYMENT_PENDING) {
+            throw new IllegalStateException("Cannot delete a basket with payment in progress");
+        }
+
         basketRepository.delete(basket);
     }
 
-    // Méthode pour recalculer les frais et le montant total du panier
     public void recalcFeesAndTotal(Basket basket) {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        // Calcul du total des réservations avec promo appliquée
-        for (Reservation reservation : basket.getReservations()) {
-            // Récupère le prix final du billet, tenant compte de la promo
-            BigDecimal ticketPrice = ticketPriceService.calculateFinalPrice(reservation.getTicketPrice().getPriceId());  // Utilisation de getPriceId()
-
-            // Ajoute ce prix au total
-            totalAmount = totalAmount.add(ticketPrice);
+        if (basket.getReservations() != null) {
+            for (Reservation reservation : basket.getReservations()) {
+                if (reservation.getTicketPrice() == null) {
+                    continue;
+                }
+                BigDecimal ticketPrice = ticketPriceService
+                        .calculateFinalPrice(reservation.getTicketPrice().getPriceId());
+                totalAmount = totalAmount.add(ticketPrice);
+            }
         }
 
-        basket.setBasketAmount(totalAmount);  // Met à jour le montant du panier
+        basket.setBasketAmount(totalAmount);
 
-        // Calcul des frais selon le taux de la compagnie
         BigDecimal rate = basket.getCompany() != null && basket.getCompany().getRateFees() != null
                 ? basket.getCompany().getRateFees()
                 : BigDecimal.ZERO;
@@ -138,9 +172,13 @@ public class BasketService {
         BigDecimal fees = totalAmount.multiply(rate).setScale(2, RoundingMode.HALF_UP);
         BigDecimal total = totalAmount.add(fees).setScale(2, RoundingMode.HALF_UP);
 
-        basket.setBasketFees(fees);  // Met à jour les frais
-        basket.setBasketTotalAmount(total);  // Met à jour le montant total avec les frais
+        basket.setBasketFees(fees);
+        basket.setBasketTotalAmount(total);
 
-        basketRepository.save(basket);  // Sauvegarde du panier mis à jour
+        basketRepository.save(basket);
+    }
+
+    private String normalize(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 }
