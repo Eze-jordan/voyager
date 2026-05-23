@@ -1,0 +1,39 @@
+services:
+  # db:
+  #   image: postgres:15
+  #   container_name: postgres_voyagerdb
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: 123456789
+  #     POSTGRES_DB: voyagerdb
+  #   ports:
+  #     - "5439:5432"
+  #   volumes:
+  #     - db-data:/var/lib/postgresql/data
+  #   networks:
+  #     - voyager-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voyager_app
+    ports:
+      - "9088:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://86.105.252.192:5432/voyagerdb
+      SPRING_DATASOURCE_USERNAME: springuser
+      SPRING_DATASOURCE_PASSWORD: 9bc62539da2fd028d4f558651ff2fa7n6u3lpo497faf8511c092bd78273970cd
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - voyager-net
+
+volumes:
+  db-data:
+
+networks:
+  voyager-net:

@@ -174,22 +174,39 @@ public class PaymentService {
             }
         }
     }
-
     @Transactional
-    public void handlePaymentCallback(PaymentCallbackRequest callback) {
-        if (callback == null || callback.getReference() == null || callback.getReference().isBlank()) {
+    public PaymentInitVoyagerResponse handlePaymentCallback(PaymentCallbackRequest callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("Callback body is required");
+        }
+
+        String reference = normalize(callback.getReference());
+
+        if (reference == null) {
             throw new IllegalArgumentException("Callback reference is required");
         }
 
-        PaymentTransaction tx = paymentRepository.findByReference(callback.getReference())
+        PaymentTransaction tx = paymentRepository.findByReference(reference)
                 .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
 
-        tx.setExternalTransactionId(normalize(callback.getTransactionId()));
-        tx.setCallbackRawStatus(normalize(callback.getStatus()));
-        tx.setProviderMessage(normalize(callback.getMessage()));
+        String transactionId = normalize(callback.getTransactionId());
+        String callbackStatus = normalize(callback.getStatus());
+        String callbackMessage = normalize(callback.getMessage());
+
+        if (transactionId != null) {
+            tx.setExternalTransactionId(transactionId);
+        }
+
+        if (callbackStatus != null) {
+            tx.setCallbackRawStatus(callbackStatus);
+        }
+
+        if (callbackMessage != null) {
+            tx.setProviderMessage(callbackMessage);
+        }
 
         Basket basket = tx.getBasket();
-        String status = callback.getStatus() == null ? "" : callback.getStatus().trim().toUpperCase();
+        String status = callbackStatus == null ? "" : callbackStatus.trim().toUpperCase();
 
         if ("SUCCESS".equals(status) || "PAID".equals(status) || "COMPLETED".equals(status)) {
             tx.setStatus(PaymentStatus.SUCCESS);
@@ -224,8 +241,9 @@ public class PaymentService {
         }
 
         paymentRepository.save(tx);
-    }
 
+        return buildResponse(tx, basket);
+    }
     private PaymentInitVoyagerResponse buildResponse(PaymentTransaction tx, Basket basket) {
         return new PaymentInitVoyagerResponse(
                 tx.getPaymentId(),
@@ -395,5 +413,20 @@ public class PaymentService {
         }
 
         return reference.toString();
+    }
+
+    @Transactional
+    public String checkProviderStatus(String paymentId) {
+        PaymentTransaction tx = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+
+        if (tx.getExternalTransactionId() == null || tx.getExternalTransactionId().isBlank()) {
+            throw new IllegalStateException("External transaction ID not available yet");
+        }
+
+        return paymentClient.paymentStatus(
+                tx.getAppId(),
+                tx.getReference()
+        );
     }
 }

@@ -46,7 +46,7 @@ public class SolutechPaymentClient {
     public String paymentStatus(String appId, String transactionId) {
         return restClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/api/pvit/payment/status")
+                        .path("/api/pvit/payments/status")
                         .queryParam("appId", appId)
                         .queryParam("transactionId", transactionId)
                         .build())
