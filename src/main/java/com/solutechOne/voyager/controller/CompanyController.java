@@ -43,7 +43,6 @@ public class CompanyController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     @Operation(summary = "Get company by ID")
     public ResponseEntity<CompanyDTO> findById(@PathVariable String id) {
         return ResponseEntity.ok(companyService.findById(id));
