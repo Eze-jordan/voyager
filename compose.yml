@@ -28,7 +28,7 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
     volumes:
-      - /var/application/api-voyager/uploads:/app/uploads
+      - ./uploads:/app/uploads
 
     networks:
       - voyager-net
