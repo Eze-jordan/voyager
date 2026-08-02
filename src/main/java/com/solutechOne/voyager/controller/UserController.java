@@ -42,7 +42,7 @@ public class UserController {
     }
 
     @PostMapping("/create")
-    @PreAuthorize("hasAnyRole('COMPANY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     @Operation(summary = "Create a user account", tags = "Users")
     public ResponseEntity<UserDTO> create(@Valid @RequestBody UserDTO body) {
         UserDTO created = userService.create(body);
@@ -53,7 +53,7 @@ public class UserController {
 
     @PatchMapping("/{id}/change-password")
     @PreAuthorize("""
-    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR') and this.isSelf(#id, authentication.name))
+    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR','CAISSE','SUPER_ADMIN','ADMIN') and this.isSelf(#id, authentication.name))
     or hasRole('COMPANY')
 """)    @Operation(summary = "Change password for a user (self or admin)", tags = "Users")
     public ResponseEntity<Map<String, String>> changePassword(
@@ -82,7 +82,7 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('COMPANY')")
+    @PreAuthorize("hasAnyRole('COMPANY','SUPER_ADMIN','ADMIN')")
     @Operation(summary = "Get all users", tags = "Users")
     public ResponseEntity<List<UserDTO>> findAll() {
         return ResponseEntity.ok(userService.findAll());
@@ -90,7 +90,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("""
-    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR') and this.isSelf(#id, authentication.name))
+    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR','CAISSE','SUPER_ADMIN','ADMIN') and this.isSelf(#id, authentication.name))
     or hasRole('COMPANY')
 """)    @Operation(summary = "Get user by ID", tags = "Users")
     public ResponseEntity<UserDTO> findById(@PathVariable String id) {
@@ -100,7 +100,7 @@ public class UserController {
     /** Partial update: send only the fields to modify */
     @PatchMapping("/{id}")
     @PreAuthorize("""
-    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR') and this.isSelf(#id, authentication.name))
+    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR','CAISSE','SUPER_ADMIN','ADMIN') and this.isSelf(#id, authentication.name))
     or hasRole('COMPANY')
 """)    @Operation(summary = "Update user (partial)", tags = "Users")
     public ResponseEntity<UserDTO> patch(@PathVariable String id, @RequestBody UserDTO body) {
@@ -108,7 +108,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('COMPANY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     @Operation(summary = "Delete a user by ID", tags = "Users")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         userService.delete(id);
@@ -117,7 +117,7 @@ public class UserController {
 
     @PostMapping("/{id}/photo")
     @PreAuthorize("""
-    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR') and this.isSelf(#id, authentication.name))
+    (hasAnyRole('ADMINISTRATEUR','COMMERCIAL','COMPTABLE','AUDITEUR','CAISSE') and this.isSelf(#id, authentication.name))
     or hasRole('COMPANY')
 """)
     @Operation(summary = "Upload user profile photo", tags = "Users")

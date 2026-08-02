@@ -95,6 +95,18 @@ public class Basket {
             this.numberOfReservations = 0;
         }
     }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cashier_id")
+    private User cashier;
+
+
+    public User getCashier() {
+        return cashier;
+    }
+
+    public void setCashier(User cashier) {
+        this.cashier = cashier;
+    }
     public List<Reservation> getReservations() {
         return reservations;
     }

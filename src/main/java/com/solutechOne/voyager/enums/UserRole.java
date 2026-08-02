@@ -4,5 +4,7 @@ public enum UserRole {
     ADMINISTRATEUR,
     COMMERCIAL,
     COMPTABLE,
-    AUDITEUR
+    AUDITEUR,
+    CAISSE
+
 }

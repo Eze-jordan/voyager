@@ -11,4 +11,15 @@ public interface BasketRepository extends JpaRepository<Basket, String> {
     List<Basket> findByCompany_CompanyId(String companyId);
 
     List<Basket> findByCompany_CompanyIdAndBasketStatus(String companyId, BasketStatus status);
+    List<Basket> findByCashier_Id(String cashierId);
+
+    List<Basket> findByCompany_CompanyIdAndCashier_Id(
+            String companyId,
+            String cashierId
+    );
+
+    boolean existsByBasketIdAndCashier_Id(
+            String basketId,
+            String cashierId
+    );
 }
