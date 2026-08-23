@@ -29,7 +29,7 @@ public class DepartureController {
     }
 
     @Operation(summary = "Récupérer tous les départs")
-    @GetMapping
+    @GetMapping("/getAll")
     public ResponseEntity<List<Departure>> getAllDepartures() {
         return ResponseEntity.ok(departureService.getAllDepartures());
     }

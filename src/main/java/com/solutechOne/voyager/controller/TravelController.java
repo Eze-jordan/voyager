@@ -52,7 +52,7 @@ public class TravelController {
     }
 
     @Operation(summary = "Obtenir les voyages par panier")
-    @GetMapping
+    @GetMapping("/getByBasket")
     public ResponseEntity<List<TravelResponse>> getByBasket(@RequestParam String basketId) {
         List<TravelResponse> res = service.getByBasket(basketId)
                 .stream()

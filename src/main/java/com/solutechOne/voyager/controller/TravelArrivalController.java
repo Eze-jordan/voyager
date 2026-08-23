@@ -33,7 +33,7 @@ public class TravelArrivalController {
     }
 
     @Operation(summary = "Obtenir toutes les arrivées")
-    @GetMapping
+    @GetMapping("/getAll")
     public ResponseEntity<List<TravelArrival>> getAll() {
         return ResponseEntity.ok(service.getAll());
     }

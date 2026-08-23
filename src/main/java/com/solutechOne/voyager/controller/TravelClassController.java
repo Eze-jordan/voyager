@@ -31,7 +31,7 @@ public class TravelClassController {
     }
 
     @Operation(summary = "Obtenir toutes les classes de voyage")
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<TravelClass>> getAllTravelClasses() {
         return ResponseEntity.ok(travelClassService.getAllTravelClasses());
     }

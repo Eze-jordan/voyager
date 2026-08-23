@@ -66,7 +66,23 @@ public class SecurityConfig {
                                 "/api/V1/passengers",
                                 "/api/V1/payments/callback",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/api/V1/baskets/**",
+                                "/api/V1/baskets/{id}",
+                                "/api/V1/baskets/{id}/amount",
+                                "/api/V1/cities/getAll",
+                                "/api/V1/cities/company/{companyId}",
+                                "/api/V1/departures/getAll",
+                                "/api/V1/departures/company/{companyId}",
+                                "/api/V1/itineraries/all",
+                                "/api/V1/payments/**",
+                                "/api/V1/reservations/**",
+                                "/api/V1/arrivals/getAll",
+                                "/api/V1/arrivals/departure/{departureId}",
+                                "/api/V1/travel-classes/all",
+                                "/api/V1/travel-classes/company/{companyId}",
+                                "/api/V1/travels/getByBasket",
+                                "/api/V1/travels/{id}"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

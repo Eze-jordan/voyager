@@ -39,7 +39,7 @@ public class ItineraryController {
     }
 
     @Operation(summary = "Récupérer tous les itinéraires")
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<Itinerary>> getAll() {
         return ResponseEntity.ok(service.getAll());
     }

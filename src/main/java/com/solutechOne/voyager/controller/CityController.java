@@ -30,7 +30,7 @@ public class CityController {
     }
 
     @Operation(summary = "Récupérer toutes les villes")
-    @GetMapping
+    @GetMapping("/getAll")
     public ResponseEntity<List<City>> getAllCities() {
         return new ResponseEntity<>(cityService.getAllCities(), HttpStatus.OK);
     }
