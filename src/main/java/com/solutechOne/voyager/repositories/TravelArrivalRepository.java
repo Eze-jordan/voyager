@@ -11,4 +11,5 @@ import java.util.List;
 public interface TravelArrivalRepository extends JpaRepository<TravelArrival, String> {
 
     List<TravelArrival> findByDeparture_DepartureId(String departureId);
+    List<TravelArrival> findByDeparture_Company_CompanyId(String companyId);
 }

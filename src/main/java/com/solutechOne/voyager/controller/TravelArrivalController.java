@@ -25,7 +25,14 @@ public class TravelArrivalController {
     public ResponseEntity<TravelArrival> create(@RequestBody TravelArrival arrival) {
         return ResponseEntity.status(201).body(service.create(arrival));
     }
-
+    @GetMapping("/company/{companyId}")
+    public ResponseEntity<List<TravelArrival>> getByCompany(
+            @PathVariable String companyId
+    ) {
+        return ResponseEntity.ok(
+                service.getByCompany(companyId)
+        );
+    }
     @Operation(summary = "Obtenir une arrivée par ID")
     @GetMapping("/{id}")
     public ResponseEntity<TravelArrival> getById(@PathVariable String id) {

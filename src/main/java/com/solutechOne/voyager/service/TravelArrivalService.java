@@ -111,4 +111,7 @@ public class TravelArrivalService {
     public void delete(String id) {
         repository.deleteById(id);
     }
+    public List<TravelArrival> getByCompany(String companyId) {
+        return repository.findByDeparture_Company_CompanyId(companyId);
+    }
 }

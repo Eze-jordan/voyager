@@ -1,24 +1,47 @@
 package com.solutechOne.voyager.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public class TravelWithTicketsResponse {
 
     private String travelId;
     private String basketId;
+
     private String departureId;
+    private LocalDate departureDate;
+    private LocalTime departureTime;
+
     private String arrivalId;
+    private LocalDate arrivalDate;
+    private LocalTime arrivalTime;
+
     private List<TicketItemResponse> tickets;
 
     public TravelWithTicketsResponse() {
     }
 
-    public TravelWithTicketsResponse(String travelId, String basketId, String departureId, String arrivalId, List<TicketItemResponse> tickets) {
+    public TravelWithTicketsResponse(
+            String travelId,
+            String basketId,
+            String departureId,
+            LocalDate departureDate,
+            LocalTime departureTime,
+            String arrivalId,
+            LocalDate arrivalDate,
+            LocalTime arrivalTime,
+            List<TicketItemResponse> tickets
+    ) {
         this.travelId = travelId;
         this.basketId = basketId;
         this.departureId = departureId;
+        this.departureDate = departureDate;
+        this.departureTime = departureTime;
         this.arrivalId = arrivalId;
+        this.arrivalDate = arrivalDate;
+        this.arrivalTime = arrivalTime;
         this.tickets = tickets;
     }
 
@@ -46,12 +69,44 @@ public class TravelWithTicketsResponse {
         this.departureId = departureId;
     }
 
+    public LocalDate getDepartureDate() {
+        return departureDate;
+    }
+
+    public void setDepartureDate(LocalDate departureDate) {
+        this.departureDate = departureDate;
+    }
+
+    public LocalTime getDepartureTime() {
+        return departureTime;
+    }
+
+    public void setDepartureTime(LocalTime departureTime) {
+        this.departureTime = departureTime;
+    }
+
     public String getArrivalId() {
         return arrivalId;
     }
 
     public void setArrivalId(String arrivalId) {
         this.arrivalId = arrivalId;
+    }
+
+    public LocalDate getArrivalDate() {
+        return arrivalDate;
+    }
+
+    public void setArrivalDate(LocalDate arrivalDate) {
+        this.arrivalDate = arrivalDate;
+    }
+
+    public LocalTime getArrivalTime() {
+        return arrivalTime;
+    }
+
+    public void setArrivalTime(LocalTime arrivalTime) {
+        this.arrivalTime = arrivalTime;
     }
 
     public List<TicketItemResponse> getTickets() {
@@ -63,6 +118,7 @@ public class TravelWithTicketsResponse {
     }
 
     public static class TicketItemResponse {
+
         private String priceId;
         private String ticketTitle;
         private BigDecimal ticketPrice;
@@ -72,7 +128,13 @@ public class TravelWithTicketsResponse {
         public TicketItemResponse() {
         }
 
-        public TicketItemResponse(String priceId, String ticketTitle, BigDecimal ticketPrice, String classId, String classDesignation) {
+        public TicketItemResponse(
+                String priceId,
+                String ticketTitle,
+                BigDecimal ticketPrice,
+                String classId,
+                String classDesignation
+        ) {
             this.priceId = priceId;
             this.ticketTitle = ticketTitle;
             this.ticketPrice = ticketPrice;

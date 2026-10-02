@@ -29,7 +29,7 @@ public class PlaceController {
     }
 
     @Operation(summary = "Obtenir toutes les places")
-    @GetMapping
+    @GetMapping("/getAll")
     public ResponseEntity<List<Place>> getAllPlaces() {
         return ResponseEntity.ok(placeService.getAllPlaces());
     }

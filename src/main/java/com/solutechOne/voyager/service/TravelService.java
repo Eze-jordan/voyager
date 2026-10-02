@@ -13,7 +13,7 @@ import com.solutechOne.voyager.repositories.TicketPriceRepository;
 import com.solutechOne.voyager.repositories.TravelArrivalRepository;
 import com.solutechOne.voyager.repositories.TravelRepository;
 import org.springframework.stereotype.Service;
-
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -119,25 +119,63 @@ public class TravelService {
         );
     }
 
-    public TravelWithTicketsResponse createAndReturnTickets(String basketId, String departureId, String arrivalId) {
-        Travel travel = create(basketId, departureId, arrivalId);
-        List<TicketPrice> tickets = getRelatedTicketsByTravel(travel.getTravelId());
+    public TravelWithTicketsResponse createAndReturnTickets(
+            String basketId,
+            String departureId,
+            String arrivalId,
+            LocalDate date
+    ) {
+        // Vérification de la date avant de créer le Travel
+        Departure departure = departureRepository.findById(departureId)
+                .orElseThrow(() ->
+                        new RuntimeException("Departure not found: " + departureId)
+                );
 
-        List<TravelWithTicketsResponse.TicketItemResponse> ticketItems = tickets.stream()
-                .map(ticket -> new TravelWithTicketsResponse.TicketItemResponse(
-                        ticket.getPriceId(),
-                        ticket.getTicketTitle(),
-                        ticket.getTicketPrice(),
-                        ticket.getTravelClass() != null ? ticket.getTravelClass().getClassId() : null,
-                        ticket.getTravelClass() != null ? ticket.getTravelClass().getClassDesignation() : null
-                ))
-                .toList();
+        if (date == null) {
+            throw new IllegalArgumentException("La date est obligatoire");
+        }
+
+        if (!departure.getDepartureDate().equals(date)) {
+            throw new IllegalStateException(
+                    "Le départ ne correspond pas à la date demandée"
+            );
+        }
+
+        // La date est correcte : on peut maintenant créer le Travel
+        Travel travel = create(basketId, departureId, arrivalId);
+
+        List<TicketPrice> tickets =
+                getRelatedTicketsByTravel(travel.getTravelId());
+
+        List<TravelWithTicketsResponse.TicketItemResponse> ticketItems =
+                tickets.stream()
+                        .map(ticket -> new TravelWithTicketsResponse.TicketItemResponse(
+                                ticket.getPriceId(),
+                                ticket.getTicketTitle(),
+                                ticket.getTicketPrice(),
+                                ticket.getTravelClass() != null
+                                        ? ticket.getTravelClass().getClassId()
+                                        : null,
+                                ticket.getTravelClass() != null
+                                        ? ticket.getTravelClass().getClassDesignation()
+                                        : null
+                        ))
+                        .toList();
 
         return new TravelWithTicketsResponse(
                 travel.getTravelId(),
                 travel.getBasket().getBasketId(),
+
+                // Départ
                 travel.getDeparture().getDepartureId(),
+                travel.getDeparture().getDepartureDate(),
+                travel.getDeparture().getDepartureTime(),
+
+                // Arrivée
                 travel.getArrival().getArrivalId(),
+                travel.getArrival().getArrivalDate(),
+                travel.getArrival().getArrivalTime(),
+
                 ticketItems
         );
     }

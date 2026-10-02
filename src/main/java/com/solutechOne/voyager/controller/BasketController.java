@@ -48,12 +48,13 @@ public class BasketController {
         return ResponseEntity.ok(BasketResponse.fromEntity(basket));
     }
 
+
     @Operation(
-            summary = "Lister les paniers d’une entreprise",
-            description = "Retourne la liste des paniers associés à une entreprise donnée"
+            summary = "Récupérer tous les paniers d'une compagnie",
+            description = "Retourne tous les paniers associés à une compagnie donnée"
     )
-    @GetMapping
-    public ResponseEntity<List<BasketResponse>> getByCompany(@RequestParam String companyId) {
+    @GetMapping("/companies/{companyId}/baskets")
+    public ResponseEntity<List<BasketResponse>> getByCompany(@PathVariable String companyId) {
         List<BasketResponse> res = service.getByCompany(companyId)
                 .stream()
                 .map(BasketResponse::fromEntity)

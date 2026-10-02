@@ -29,7 +29,7 @@ public class TransportMeansController {
     }
 
     @Operation(summary = "Lister les moyens de transport par compagnie")
-    @GetMapping
+    @GetMapping("/getAll")
     public ResponseEntity<List<TransportMeans>> list(@RequestParam String companyId) {
         return ResponseEntity.ok(service.listByCompany(companyId));
     }

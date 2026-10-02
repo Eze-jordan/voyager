@@ -9,4 +9,8 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     Optional<PaymentTransaction> findByReference(String reference);
     Optional<PaymentTransaction> findByExternalTransactionId(String externalTransactionId);
     boolean existsByBasket_BasketIdAndStatusIn(String basketId, java.util.Collection<com.solutechOne.voyager.enums.PaymentStatus> statuses);
+    Optional<PaymentTransaction> findTopByBasket_BasketIdOrderByCreatedAtDesc(
+            String basketId
+    );
+
 }

@@ -65,6 +65,8 @@ public class SecurityConfig {
                                 "/api/V1/managers/change-password",
                                 "/api/V1/passengers",
                                 "/api/V1/payments/callback",
+                                "/api/V1/places/getAll",
+                                "/api/V1/places/company/{companyId}",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/api/V1/baskets/**",
@@ -82,7 +84,12 @@ public class SecurityConfig {
                                 "/api/V1/travel-classes/all",
                                 "/api/V1/travel-classes/company/{companyId}",
                                 "/api/V1/travels/getByBasket",
-                                "/api/V1/travels/{id}"
+                                "/api/V1/travels/{id}",
+                                "/api/V1/transport-means/{meansId}",
+                                "/api/V1/transport-means/getAll",
+                                "/api/V1/travels/**",
+                                "/api/V1/arrivals/company/{companyId}",
+                                "/api/V1/ticket-prices/company/{companyId}"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

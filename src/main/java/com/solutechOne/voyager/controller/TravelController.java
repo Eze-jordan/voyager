@@ -37,11 +37,14 @@ public class TravelController {
 
     @Operation(summary = "Créer un voyage et retourner les tickets")
     @PostMapping
-    public TravelWithTicketsResponse create(@RequestBody TravelCreateRequest request) {
+    public TravelWithTicketsResponse create(
+            @RequestBody TravelCreateRequest request
+    ) {
         return service.createAndReturnTickets(
                 request.getBasketId(),
                 request.getDepartureId(),
-                request.getArrivalId()
+                request.getArrivalId(),
+                request.getDate()
         );
     }
 

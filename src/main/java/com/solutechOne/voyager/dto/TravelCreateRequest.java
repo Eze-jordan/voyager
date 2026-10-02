@@ -1,9 +1,13 @@
 package com.solutechOne.voyager.dto;
 
+import java.time.LocalDate;
+
 public class TravelCreateRequest {
-    public String basketId;
-    public String departureId;
-    public String arrivalId;
+
+    private String basketId;
+    private String departureId;
+    private String arrivalId;
+    private LocalDate date;
 
     public String getBasketId() {
         return basketId;
@@ -27,5 +31,13 @@ public class TravelCreateRequest {
 
     public void setArrivalId(String arrivalId) {
         this.arrivalId = arrivalId;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
     }
 }

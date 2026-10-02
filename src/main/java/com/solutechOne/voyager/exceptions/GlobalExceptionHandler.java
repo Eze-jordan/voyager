@@ -45,4 +45,21 @@ public class GlobalExceptionHandler {
         ApiError err = new ApiError(500, "INTERNAL_SERVER_ERROR", "Erreur serveur", req.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
     }
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiError> handleIllegalState(
+            IllegalStateException ex,
+            HttpServletRequest request
+    ) {
+
+        ApiError error = new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                "BAD_REQUEST",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
 }
