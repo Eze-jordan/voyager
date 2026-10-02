@@ -9,13 +9,11 @@ import com.solutechOne.voyager.dto.PaymentInitVoyagerResponse;
 import com.solutechOne.voyager.dto.PaymentProviderInitRequest;
 import com.solutechOne.voyager.enums.BasketStatus;
 import com.solutechOne.voyager.enums.PaymentStatus;
-import com.solutechOne.voyager.enums.ReservationStatus;
 import com.solutechOne.voyager.integration.SolutechPaymentClient;
 import com.solutechOne.voyager.model.Basket;
 import com.solutechOne.voyager.model.PaymentTransaction;
 import com.solutechOne.voyager.repositories.BasketRepository;
 import com.solutechOne.voyager.repositories.PaymentTransactionRepository;
-import com.solutechOne.voyager.repositories.ReservationRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -29,76 +27,124 @@ public class PaymentService {
     private final BasketRepository basketRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final SolutechPaymentClient paymentClient;
-    private final ReservationRepository reservationRepository;
     private final BasketService basketService;
     private final ObjectMapper objectMapper;
+    private final PaymentStatusScheduler paymentStatusScheduler;
+    private final PaymentSuccessService paymentSuccessService;
 
     public PaymentService(
             BasketRepository basketRepository,
             PaymentTransactionRepository paymentRepository,
             SolutechPaymentClient paymentClient,
-            ReservationRepository reservationRepository,
             BasketService basketService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            PaymentStatusScheduler paymentStatusScheduler,
+            PaymentSuccessService paymentSuccessService
     ) {
         this.basketRepository = basketRepository;
         this.paymentRepository = paymentRepository;
         this.paymentClient = paymentClient;
-        this.reservationRepository = reservationRepository;
         this.basketService = basketService;
         this.objectMapper = objectMapper;
+        this.paymentStatusScheduler = paymentStatusScheduler;
+        this.paymentSuccessService = paymentSuccessService;
     }
 
+    // =========================================================
+    // INITIER UN PAIEMENT
+    // =========================================================
+
     @Transactional
-    public PaymentInitVoyagerResponse initiatePayment(PaymentInitVoyagerRequest request) {
+    public PaymentInitVoyagerResponse initiatePayment(
+            PaymentInitVoyagerRequest request
+    ) {
+
         validateInitRequest(request);
 
-        Basket basket = basketRepository.findById(request.getBasketId())
-                .orElseThrow(() -> new RuntimeException("Basket not found"));
+        Basket basket = basketRepository
+                .findById(request.getBasketId())
+                .orElseThrow(() ->
+                        new RuntimeException("Basket not found")
+                );
 
         if (basket.getBasketStatus() == BasketStatus.PAYE) {
-            throw new IllegalStateException("Basket already paid");
+            throw new IllegalStateException(
+                    "Basket already paid"
+            );
         }
 
         if (basket.getBasketStatus() == BasketStatus.ABANDONNE) {
-            throw new IllegalStateException("Cannot pay an abandoned basket");
+            throw new IllegalStateException(
+                    "Cannot pay an abandoned basket"
+            );
         }
 
-        if (basket.getBasketTotalAmount() == null || basket.getBasketTotalAmount().signum() <= 0) {
-            throw new IllegalStateException("Basket total amount must be greater than zero");
+        if (basket.getBasketTotalAmount() == null
+                || basket.getBasketTotalAmount().signum() <= 0) {
+
+            throw new IllegalStateException(
+                    "Basket total amount must be greater than zero"
+            );
         }
 
-        boolean alreadyRunning = paymentRepository.existsByBasket_BasketIdAndStatusIn(
-                basket.getBasketId(),
-                List.of(
-                        PaymentStatus.CREATED,
-                        PaymentStatus.KYC_PENDING,
-                        PaymentStatus.KYC_OK,
-                        PaymentStatus.INITIATED,
-                        PaymentStatus.PENDING,
-                        PaymentStatus.SUCCESS
-                )
-        );
+        boolean alreadyRunning =
+                paymentRepository
+                        .existsByBasket_BasketIdAndStatusIn(
+                                basket.getBasketId(),
+                                List.of(
+                                        PaymentStatus.CREATED,
+                                        PaymentStatus.KYC_PENDING,
+                                        PaymentStatus.KYC_OK,
+                                        PaymentStatus.INITIATED,
+                                        PaymentStatus.PENDING,
+                                        PaymentStatus.SUCCESS
+                                )
+                        );
 
         if (alreadyRunning) {
-            throw new IllegalStateException("A payment already exists or is in progress for this basket");
+            throw new IllegalStateException(
+                    "A payment already exists or is in progress for this basket"
+            );
         }
 
+        // =====================================================
+        // CRÉATION TRANSACTION
+        // =====================================================
+
         PaymentTransaction tx = new PaymentTransaction();
-        tx.setPaymentId("pay-" + UUID.randomUUID());
+
+        tx.setPaymentId(
+                "pay-" + UUID.randomUUID()
+        );
+
         tx.setBasket(basket);
 
-        String reference = generateUniquePaymentReference();
+        String reference =
+                generateUniquePaymentReference();
 
         tx.setReference(reference);
         tx.setAppId(request.getAppId());
         tx.setOperatorName(request.getOperatorName());
-        tx.setCustomerAccountNumber(request.getCustomerAccountNumber());
-        tx.setAmount(basket.getBasketTotalAmount());
-        tx.setStatus(PaymentStatus.CREATED);
+        tx.setCustomerAccountNumber(
+                request.getCustomerAccountNumber()
+        );
+        tx.setAmount(
+                basket.getBasketTotalAmount()
+        );
+        tx.setStatus(
+                PaymentStatus.CREATED
+        );
+
         paymentRepository.save(tx);
 
-        tx.setStatus(PaymentStatus.KYC_PENDING);
+        // =====================================================
+        // KYC
+        // =====================================================
+
+        tx.setStatus(
+                PaymentStatus.KYC_PENDING
+        );
+
         paymentRepository.save(tx);
 
         KycResponse kyc = paymentClient.kyc(
@@ -107,144 +153,405 @@ public class PaymentService {
         );
 
         if (kyc == null) {
-            tx.setStatus(PaymentStatus.KYC_FAILED);
-            tx.setProviderMessage("KYC response null");
+
+            tx.setStatus(
+                    PaymentStatus.KYC_FAILED
+            );
+
+            tx.setProviderMessage(
+                    "KYC response null"
+            );
+
             paymentRepository.save(tx);
-            throw new IllegalStateException("KYC response null");
+
+            throw new IllegalStateException(
+                    "KYC response null"
+            );
         }
 
-        if (kyc.getErrorMessage() != null && !kyc.getErrorMessage().isBlank()) {
-            tx.setStatus(PaymentStatus.KYC_FAILED);
-            tx.setProviderMessage(kyc.getErrorMessage());
+        if (kyc.getErrorMessage() != null
+                && !kyc.getErrorMessage().isBlank()) {
+
+            tx.setStatus(
+                    PaymentStatus.KYC_FAILED
+            );
+
+            tx.setProviderMessage(
+                    kyc.getErrorMessage()
+            );
+
             paymentRepository.save(tx);
-            throw new IllegalStateException("KYC error: " + kyc.getErrorMessage());
+
+            throw new IllegalStateException(
+                    "KYC error: "
+                            + kyc.getErrorMessage()
+            );
         }
 
         if (!kyc.isIs_active()) {
-            tx.setStatus(PaymentStatus.KYC_FAILED);
-            tx.setProviderMessage("Compte client inactif");
+
+            tx.setStatus(
+                    PaymentStatus.KYC_FAILED
+            );
+
+            tx.setProviderMessage(
+                    "Compte client inactif"
+            );
+
             paymentRepository.save(tx);
-            throw new IllegalStateException("Compte client inactif");
+
+            throw new IllegalStateException(
+                    "Compte client inactif"
+            );
         }
 
-        tx.setStatus(PaymentStatus.KYC_OK);
-        tx.setProviderMessage("KYC OK - " + kyc.getFull_name());
-        paymentRepository.save(tx);
-
-        PaymentProviderInitRequest providerBody = new PaymentProviderInitRequest(
-                tx.getAmount(),
-                tx.getReference(),
-                request.getCustomerAccountNumber()
+        tx.setStatus(
+                PaymentStatus.KYC_OK
         );
 
-        try {
-            tx.setStatus(PaymentStatus.INITIATED);
-            paymentRepository.save(tx);
-            try {
-                System.out.println("APP ID PAYMENT = " + request.getAppId());
-                System.out.println("PROVIDER BODY JSON = " + objectMapper.writeValueAsString(providerBody));
-            } catch (Exception e) {
-                System.out.println("Impossible d'afficher le body provider: " + e.getMessage());
-            }
-            String initResponse = paymentClient.initPayment(request.getAppId(), providerBody);
-            applyInitResponse(tx, basket, initResponse, request);
+        tx.setProviderMessage(
+                "KYC OK - " + kyc.getFull_name()
+        );
 
-            return buildResponse(tx, basket);
+        paymentRepository.save(tx);
+
+        // =====================================================
+        // BODY ENVOYÉ AU PROVIDER
+        // =====================================================
+
+        PaymentProviderInitRequest providerBody =
+                new PaymentProviderInitRequest(
+                        tx.getAmount(),
+                        tx.getReference(),
+                        request.getCustomerAccountNumber()
+                );
+
+        try {
+
+            tx.setStatus(
+                    PaymentStatus.INITIATED
+            );
+
+            paymentRepository.save(tx);
+
+            try {
+
+                System.out.println(
+                        "APP ID PAYMENT = "
+                                + request.getAppId()
+                );
+
+                System.out.println(
+                        "PROVIDER BODY JSON = "
+                                + objectMapper.writeValueAsString(
+                                providerBody
+                        )
+                );
+
+            } catch (Exception e) {
+
+                System.out.println(
+                        "Impossible d'afficher le body provider: "
+                                + e.getMessage()
+                );
+            }
+
+            // =================================================
+            // INIT PAIEMENT PROVIDER
+            // =================================================
+
+            String initResponse =
+                    paymentClient.initPayment(
+                            request.getAppId(),
+                            providerBody
+                    );
+
+            applyInitResponse(
+                    tx,
+                    basket,
+                    initResponse,
+                    request
+            );
+
+            // =================================================
+            // DÉMARRAGE POLLING 30 / 60 / 90
+            // =================================================
+
+            if (tx.getStatus()
+                    == PaymentStatus.PENDING) {
+
+                paymentStatusScheduler
+                        .scheduleStatusChecks(
+                                tx.getPaymentId()
+                        );
+            }
+
+            return buildResponse(
+                    tx,
+                    basket
+            );
 
         } catch (Exception firstEx) {
+
+            // =================================================
+            // PAS DE RETRY
+            // =================================================
+
             if (!shouldRetry(firstEx)) {
-                tx.setStatus(PaymentStatus.FAILED);
-                tx.setProviderMessage(firstEx.getMessage());
+
+                tx.setStatus(
+                        PaymentStatus.FAILED
+                );
+
+                tx.setProviderMessage(
+                        firstEx.getMessage()
+                );
+
                 paymentRepository.save(tx);
-                throw new RuntimeException("Payment initiation failed: " + firstEx.getMessage(), firstEx);
+
+                throw new RuntimeException(
+                        "Payment initiation failed: "
+                                + firstEx.getMessage(),
+                        firstEx
+                );
             }
 
-            try {
-                String retryResponse = paymentClient.initPayment(request.getAppId(), providerBody);
-                applyInitResponse(tx, basket, retryResponse, request);
+            // =================================================
+            // RETRY PROVIDER
+            // =================================================
 
-                return buildResponse(tx, basket);
+            try {
+
+                String retryResponse =
+                        paymentClient.initPayment(
+                                request.getAppId(),
+                                providerBody
+                        );
+
+                applyInitResponse(
+                        tx,
+                        basket,
+                        retryResponse,
+                        request
+                );
+
+                // =============================================
+                // DÉMARRAGE POLLING APRÈS RETRY
+                // =============================================
+
+                if (tx.getStatus()
+                        == PaymentStatus.PENDING) {
+
+                    paymentStatusScheduler
+                            .scheduleStatusChecks(
+                                    tx.getPaymentId()
+                            );
+                }
+
+                return buildResponse(
+                        tx,
+                        basket
+                );
 
             } catch (Exception retryEx) {
-                tx.setStatus(PaymentStatus.FAILED);
-                tx.setProviderMessage(retryEx.getMessage());
+
+                tx.setStatus(
+                        PaymentStatus.FAILED
+                );
+
+                tx.setProviderMessage(
+                        retryEx.getMessage()
+                );
+
                 paymentRepository.save(tx);
-                basketService.markPaymentFailed(basket.getBasketId());
-                throw new RuntimeException("Payment initiation failed after retry: " + retryEx.getMessage(), retryEx);
+
+                basketService.markPaymentFailed(
+                        basket.getBasketId()
+                );
+
+                throw new RuntimeException(
+                        "Payment initiation failed after retry: "
+                                + retryEx.getMessage(),
+                        retryEx
+                );
             }
         }
     }
+
+    // =========================================================
+    // CALLBACK PROVIDER
+    // =========================================================
+
     @Transactional
-    public PaymentInitVoyagerResponse handlePaymentCallback(PaymentCallbackRequest callback) {
+    public PaymentInitVoyagerResponse handlePaymentCallback(
+            PaymentCallbackRequest callback
+    ) {
+
         if (callback == null) {
-            throw new IllegalArgumentException("Callback body is required");
+            throw new IllegalArgumentException(
+                    "Callback body is required"
+            );
         }
 
-        String reference = normalize(callback.getReference());
+        String reference =
+                normalize(callback.getReference());
 
         if (reference == null) {
-            throw new IllegalArgumentException("Callback reference is required");
+            throw new IllegalArgumentException(
+                    "Callback reference is required"
+            );
         }
 
-        PaymentTransaction tx = paymentRepository.findByReference(reference)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+        PaymentTransaction tx =
+                paymentRepository
+                        .findByReference(reference)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Payment transaction not found"
+                                )
+                        );
 
-        String transactionId = normalize(callback.getTransactionId());
-        String callbackStatus = normalize(callback.getStatus());
-        String callbackMessage = normalize(callback.getMessage());
+        String transactionId =
+                normalize(
+                        callback.getTransactionId()
+                );
+
+        String callbackStatus =
+                normalize(
+                        callback.getStatus()
+                );
+
+        String callbackMessage =
+                normalize(
+                        callback.getMessage()
+                );
 
         if (transactionId != null) {
-            tx.setExternalTransactionId(transactionId);
+            tx.setExternalTransactionId(
+                    transactionId
+            );
         }
 
         if (callbackStatus != null) {
-            tx.setCallbackRawStatus(callbackStatus);
+            tx.setCallbackRawStatus(
+                    callbackStatus
+            );
         }
 
         if (callbackMessage != null) {
-            tx.setProviderMessage(callbackMessage);
+            tx.setProviderMessage(
+                    callbackMessage
+            );
         }
 
-        Basket basket = tx.getBasket();
-        String status = callbackStatus == null ? "" : callbackStatus.trim().toUpperCase();
+        Basket basket =
+                tx.getBasket();
 
-        if ("SUCCESS".equals(status) || "PAID".equals(status) || "COMPLETED".equals(status)) {
-            tx.setStatus(PaymentStatus.SUCCESS);
+        String status =
+                callbackStatus == null
+                        ? ""
+                        : callbackStatus
+                        .trim()
+                        .toUpperCase();
 
-            basketService.markPaidByCallback(
-                    basket.getBasketId(),
-                    tx.getOperatorName(),
-                    tx.getExternalTransactionId(),
-                    tx.getCustomerAccountNumber()
+        // =====================================================
+        // SUCCESS
+        // =====================================================
+
+        if ("SUCCESS".equals(status)
+                || "PAID".equals(status)
+                || "COMPLETED".equals(status)) {
+
+            /*
+             * IMPORTANT :
+             * toute la logique métier SUCCESS est maintenant
+             * centralisée dans PaymentSuccessService.
+             */
+            paymentSuccessService
+                    .traiterPaiementReussi(
+                            tx,
+                            status
+                    );
+
+            return buildResponse(
+                    tx,
+                    basket
+            );
+        }
+
+        // =====================================================
+        // FAILED
+        // =====================================================
+
+        if ("FAILED".equals(status)) {
+
+            tx.setStatus(
+                    PaymentStatus.FAILED
             );
 
-            reservationRepository.findByBasket_BasketId(basket.getBasketId())
-                    .forEach(reservation -> {
-                        reservation.setReservationConfirmed(ReservationStatus.YES);
-                        reservationRepository.save(reservation);
-                    });
+            basketService.markPaymentFailed(
+                    basket.getBasketId()
+            );
+        }
 
-        } else if ("FAILED".equals(status)) {
-            tx.setStatus(PaymentStatus.FAILED);
-            basketService.markPaymentFailed(basket.getBasketId());
+        // =====================================================
+        // CANCELLED
+        // =====================================================
 
-        } else if ("CANCELLED".equals(status)) {
-            tx.setStatus(PaymentStatus.CANCELLED);
-            basketService.markPaymentFailed(basket.getBasketId());
+        else if ("CANCELLED".equals(status)) {
 
-        } else if ("EXPIRED".equals(status)) {
-            tx.setStatus(PaymentStatus.EXPIRED);
-            basketService.markPaymentFailed(basket.getBasketId());
+            tx.setStatus(
+                    PaymentStatus.CANCELLED
+            );
 
-        } else {
-            tx.setStatus(PaymentStatus.PENDING);
+            basketService.markPaymentFailed(
+                    basket.getBasketId()
+            );
+        }
+
+        // =====================================================
+        // EXPIRED
+        // =====================================================
+
+        else if ("EXPIRED".equals(status)) {
+
+            tx.setStatus(
+                    PaymentStatus.EXPIRED
+            );
+
+            basketService.markPaymentFailed(
+                    basket.getBasketId()
+            );
+        }
+
+        // =====================================================
+        // PENDING / AUTRE
+        // =====================================================
+
+        else {
+
+            tx.setStatus(
+                    PaymentStatus.PENDING
+            );
         }
 
         paymentRepository.save(tx);
 
-        return buildResponse(tx, basket);
+        return buildResponse(
+                tx,
+                basket
+        );
     }
-    private PaymentInitVoyagerResponse buildResponse(PaymentTransaction tx, Basket basket) {
+
+    // =========================================================
+    // BUILD RESPONSE
+    // =========================================================
+
+    private PaymentInitVoyagerResponse buildResponse(
+            PaymentTransaction tx,
+            Basket basket
+    ) {
+
         return new PaymentInitVoyagerResponse(
                 tx.getPaymentId(),
                 basket.getBasketId(),
@@ -256,27 +563,56 @@ public class PaymentService {
         );
     }
 
-    private void validateInitRequest(PaymentInitVoyagerRequest request) {
+    // =========================================================
+    // VALIDATION INIT
+    // =========================================================
+
+    private void validateInitRequest(
+            PaymentInitVoyagerRequest request
+    ) {
+
         if (request == null) {
-            throw new IllegalArgumentException("Request body is required");
+            throw new IllegalArgumentException(
+                    "Request body is required"
+            );
         }
 
-        if (request.getBasketId() == null || request.getBasketId().isBlank()) {
-            throw new IllegalArgumentException("basketId is required");
+        if (request.getBasketId() == null
+                || request.getBasketId().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "basketId is required"
+            );
         }
 
-        if (request.getAppId() == null || request.getAppId().isBlank()) {
-            throw new IllegalArgumentException("appId is required");
+        if (request.getAppId() == null
+                || request.getAppId().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "appId is required"
+            );
         }
 
-        if (request.getOperatorName() == null || request.getOperatorName().isBlank()) {
-            throw new IllegalArgumentException("operatorName is required");
+        if (request.getOperatorName() == null
+                || request.getOperatorName().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "operatorName is required"
+            );
         }
 
-        if (request.getCustomerAccountNumber() == null || request.getCustomerAccountNumber().isBlank()) {
-            throw new IllegalArgumentException("customerAccountNumber is required");
+        if (request.getCustomerAccountNumber() == null
+                || request.getCustomerAccountNumber().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "customerAccountNumber is required"
+            );
         }
     }
+
+    // =========================================================
+    // TRAITEMENT RÉPONSE INIT PROVIDER
+    // =========================================================
 
     private void applyInitResponse(
             PaymentTransaction tx,
@@ -284,33 +620,79 @@ public class PaymentService {
             String rawJson,
             PaymentInitVoyagerRequest request
     ) {
-        try {
-            JsonNode root = objectMapper.readTree(rawJson);
 
-            String providerStatus = readAny(root, "status", "state", "result");
-            String transactionId = readAny(
-                    root,
-                    "reference_id",
-                    "transactionId",
-                    "transaction_id",
-                    "providerTransactionId",
-                    "reference"
-            );            String message = extractMessage(rawJson, "Payment initiated");
+        try {
+
+            JsonNode root =
+                    objectMapper.readTree(rawJson);
+
+            String providerStatus =
+                    readAny(
+                            root,
+                            "status",
+                            "state",
+                            "result"
+                    );
+
+            String transactionId =
+                    readAny(
+                            root,
+                            "reference_id",
+                            "transactionId",
+                            "transaction_id",
+                            "providerTransactionId",
+                            "reference"
+                    );
+
+            String message =
+                    extractMessage(
+                            rawJson,
+                            "Payment initiated"
+                    );
 
             if (providerStatus != null) {
-                String ps = providerStatus.trim().toUpperCase();
 
-                if (ps.contains("FAILED") || ps.contains("ERROR")) {
-                    tx.setStatus(PaymentStatus.FAILED);
-                    tx.setProviderMessage(message);
+                String ps =
+                        providerStatus
+                                .trim()
+                                .toUpperCase();
+
+                if (ps.contains("FAILED")
+                        || ps.contains("ERROR")) {
+
+                    tx.setStatus(
+                            PaymentStatus.FAILED
+                    );
+
+                    tx.setProviderMessage(
+                            message
+                    );
+
                     paymentRepository.save(tx);
-                    throw new IllegalStateException("Provider returned failed status: " + providerStatus);
+
+                    throw new IllegalStateException(
+                            "Provider returned failed status: "
+                                    + providerStatus
+                    );
                 }
             }
 
-            tx.setStatus(PaymentStatus.PENDING);
-            tx.setExternalTransactionId(transactionId);
-            tx.setProviderMessage(message);
+            // =================================================
+            // PAIEMENT EN ATTENTE
+            // =================================================
+
+            tx.setStatus(
+                    PaymentStatus.PENDING
+            );
+
+            tx.setExternalTransactionId(
+                    transactionId
+            );
+
+            tx.setProviderMessage(
+                    message
+            );
+
             paymentRepository.save(tx);
 
             basketService.markPaymentPending(
@@ -321,48 +703,127 @@ public class PaymentService {
             );
 
         } catch (RuntimeException re) {
+
             throw re;
 
         } catch (Exception e) {
-            tx.setStatus(PaymentStatus.FAILED);
-            tx.setProviderMessage(e.getMessage());
+
+            tx.setStatus(
+                    PaymentStatus.FAILED
+            );
+
+            tx.setProviderMessage(
+                    e.getMessage()
+            );
+
             paymentRepository.save(tx);
-            throw new RuntimeException("Unable to parse payment init response", e);
+
+            throw new RuntimeException(
+                    "Unable to parse payment init response",
+                    e
+            );
         }
     }
 
-    @Transactional
-    public PaymentInitVoyagerResponse getPaymentByReference(String reference) {
-        PaymentTransaction tx = paymentRepository.findByReference(reference)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
-
-        return buildResponse(tx, tx.getBasket());
-    }
+    // =========================================================
+    // GET PAYMENT BY REFERENCE
+    // =========================================================
 
     @Transactional
-    public PaymentInitVoyagerResponse getPaymentById(String paymentId) {
-        PaymentTransaction tx = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+    public PaymentInitVoyagerResponse getPaymentByReference(
+            String reference
+    ) {
 
-        return buildResponse(tx, tx.getBasket());
+        PaymentTransaction tx =
+                paymentRepository
+                        .findByReference(reference)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Payment transaction not found"
+                                )
+                        );
+
+        return buildResponse(
+                tx,
+                tx.getBasket()
+        );
     }
 
+    // =========================================================
+    // GET PAYMENT BY ID
+    // =========================================================
 
-    private String extractMessage(String rawJson, String fallback) {
+    @Transactional
+    public PaymentInitVoyagerResponse getPaymentById(
+            String paymentId
+    ) {
+
+        PaymentTransaction tx =
+                paymentRepository
+                        .findById(paymentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Payment transaction not found"
+                                )
+                        );
+
+        return buildResponse(
+                tx,
+                tx.getBasket()
+        );
+    }
+
+    // =========================================================
+    // EXTRACTION MESSAGE PROVIDER
+    // =========================================================
+
+    private String extractMessage(
+            String rawJson,
+            String fallback
+    ) {
+
         try {
-            JsonNode root = objectMapper.readTree(rawJson);
-            String message = readAny(root, "message", "label", "description", "detail");
-            return message != null ? message : fallback;
+
+            JsonNode root =
+                    objectMapper.readTree(rawJson);
+
+            String message =
+                    readAny(
+                            root,
+                            "message",
+                            "label",
+                            "description",
+                            "detail"
+                    );
+
+            return message != null
+                    ? message
+                    : fallback;
+
         } catch (Exception e) {
+
             return fallback;
         }
     }
 
-    private String readAny(JsonNode root, String... fieldNames) {
-        for (String field : fieldNames) {
-            JsonNode node = root.get(field);
+    // =========================================================
+    // LECTURE D'UN CHAMP JSON
+    // =========================================================
 
-            if (node != null && !node.isNull() && !node.asText().isBlank()) {
+    private String readAny(
+            JsonNode root,
+            String... fieldNames
+    ) {
+
+        for (String field : fieldNames) {
+
+            JsonNode node =
+                    root.get(field);
+
+            if (node != null
+                    && !node.isNull()
+                    && !node.asText().isBlank()) {
+
                 return node.asText();
             }
         }
@@ -370,14 +831,23 @@ public class PaymentService {
         return null;
     }
 
-    private boolean shouldRetry(Exception ex) {
-        String message = ex.getMessage();
+    // =========================================================
+    // RETRY PROVIDER
+    // =========================================================
+
+    private boolean shouldRetry(
+            Exception ex
+    ) {
+
+        String message =
+                ex.getMessage();
 
         if (message == null) {
             return false;
         }
 
-        String upper = message.toUpperCase();
+        String upper =
+                message.toUpperCase();
 
         return upper.contains("502")
                 || upper.contains("RENEWSECRET")
@@ -385,45 +855,111 @@ public class PaymentService {
                 || upper.contains("PVIT_RENEW_NETWORK_ERROR");
     }
 
-    private String normalize(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+    // =========================================================
+    // NORMALISATION
+    // =========================================================
+
+    private String normalize(
+            String value
+    ) {
+
+        return value == null
+                || value.isBlank()
+                ? null
+                : value.trim();
     }
-    private static final String PAYMENT_REFERENCE_PREFIX = "PEYREF";
-    private static final int PAYMENT_REFERENCE_DIGITS = 10;
-    private static final int MAX_REFERENCE_GENERATION_ATTEMPTS = 20;
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    // =========================================================
+    // GÉNÉRATION RÉFÉRENCE PAIEMENT
+    // =========================================================
+
+    private static final String PAYMENT_REFERENCE_PREFIX =
+            "PEYREF";
+
+    private static final int PAYMENT_REFERENCE_DIGITS =
+            10;
+
+    private static final int MAX_REFERENCE_GENERATION_ATTEMPTS =
+            20;
+
+    private static final SecureRandom SECURE_RANDOM =
+            new SecureRandom();
 
     private String generateUniquePaymentReference() {
-        for (int attempt = 0; attempt < MAX_REFERENCE_GENERATION_ATTEMPTS; attempt++) {
-            String reference = generatePaymentReferenceCandidate();
 
-            if (paymentRepository.findByReference(reference).isEmpty()) {
+        for (
+                int attempt = 0;
+                attempt < MAX_REFERENCE_GENERATION_ATTEMPTS;
+                attempt++
+        ) {
+
+            String reference =
+                    generatePaymentReferenceCandidate();
+
+            if (paymentRepository
+                    .findByReference(reference)
+                    .isEmpty()) {
+
                 return reference;
             }
         }
 
-        throw new IllegalStateException("Unable to generate unique payment reference");
+        throw new IllegalStateException(
+                "Unable to generate unique payment reference"
+        );
     }
 
     private String generatePaymentReferenceCandidate() {
-        StringBuilder reference = new StringBuilder(PAYMENT_REFERENCE_PREFIX);
 
-        for (int i = 0; i < PAYMENT_REFERENCE_DIGITS; i++) {
-            reference.append(SECURE_RANDOM.nextInt(10));
+        StringBuilder reference =
+                new StringBuilder(
+                        PAYMENT_REFERENCE_PREFIX
+                );
+
+        for (
+                int i = 0;
+                i < PAYMENT_REFERENCE_DIGITS;
+                i++
+        ) {
+
+            reference.append(
+                    SECURE_RANDOM.nextInt(10)
+            );
         }
 
         return reference.toString();
     }
 
-    @Transactional
-    public String checkProviderStatus(String paymentId) {
-        PaymentTransaction tx = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+    // =========================================================
+    // STATUS PROVIDER MANUEL
+    // =========================================================
 
-        if (tx.getExternalTransactionId() == null || tx.getExternalTransactionId().isBlank()) {
-            throw new IllegalStateException("External transaction ID not available yet");
+    @Transactional
+    public String checkProviderStatus(
+            String paymentId
+    ) {
+
+        PaymentTransaction tx =
+                paymentRepository
+                        .findById(paymentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Payment transaction not found"
+                                )
+                        );
+
+        if (tx.getExternalTransactionId() == null
+                || tx.getExternalTransactionId().isBlank()) {
+
+            throw new IllegalStateException(
+                    "External transaction ID not available yet"
+            );
         }
 
+        /*
+         * PVIT attend ici la référence PEYREF...
+         * et non l'identifiant externe PAY...
+         */
         return paymentClient.paymentStatus(
                 tx.getAppId(),
                 tx.getReference()
