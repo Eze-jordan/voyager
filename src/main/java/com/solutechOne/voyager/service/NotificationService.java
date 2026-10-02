@@ -9,6 +9,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import com.solutechOne.voyager.model.Invoice;
+import org.springframework.core.io.FileSystemResource;
+
+import java.io.File;
 
 @Service
 public class NotificationService {
@@ -219,6 +223,162 @@ public class NotificationService {
             javaMailSender.send(message);
         } catch (MessagingException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void envoyerFacture(
+            Invoice invoice,
+            String pdfPath
+    ) {
+
+        if (invoice == null) {
+            throw new IllegalArgumentException(
+                    "Invoice is required"
+            );
+        }
+
+        if (invoice.getBuyerEmail() == null
+                || invoice.getBuyerEmail().isBlank()) {
+
+            throw new IllegalStateException(
+                    "Aucune adresse email pour la facture "
+                            + invoice.getInvoiceNumber()
+            );
+        }
+
+        if (pdfPath == null || pdfPath.isBlank()) {
+            throw new IllegalArgumentException(
+                    "PDF path is required"
+            );
+        }
+
+        File pdfFile = new File(pdfPath);
+
+        if (!pdfFile.exists() || !pdfFile.isFile()) {
+            throw new IllegalStateException(
+                    "PDF de facture introuvable : "
+                            + pdfPath
+            );
+        }
+
+        try {
+
+            MimeMessage message =
+                    javaMailSender.createMimeMessage();
+
+            MimeMessageHelper helper =
+                    new MimeMessageHelper(
+                            message,
+                            true,
+                            "UTF-8"
+                    );
+
+            helper.setFrom(from);
+
+            helper.setTo(
+                    invoice.getBuyerEmail()
+            );
+
+            helper.setSubject(
+                    "Votre facture Voyager - "
+                            + invoice.getInvoiceNumber()
+            );
+
+            String companyName =
+                    invoice.getCompanyName() != null
+                            ? invoice.getCompanyName()
+                            : "Voyager";
+
+            String amount =
+                    invoice.getTotalAmount() != null
+                            ? invoice.getTotalAmount().toPlainString()
+                            : "0";
+
+            String html = """
+                <div style="font-family:Arial,sans-serif;
+                            background:#f5f5f5;
+                            padding:30px;">
+
+                    <div style="max-width:600px;
+                                margin:auto;
+                                background:#ffffff;
+                                padding:30px;
+                                border-radius:8px;">
+
+                        <h2 style="color:#2c3e50;">
+                            Confirmation de votre paiement
+                        </h2>
+
+                        <p>Bonjour,</p>
+
+                        <p>
+                            Votre paiement auprès de
+                            <strong>%s</strong>
+                            a été confirmé.
+                        </p>
+
+                        <p>
+                            Votre facture
+                            <strong>%s</strong>
+                            est disponible en pièce jointe.
+                        </p>
+
+                        <p>
+                            <strong>Montant payé :</strong>
+                            %s FCFA
+                        </p>
+
+                        <p>
+                            <strong>Référence de paiement :</strong>
+                            %s
+                        </p>
+
+                        <p style="margin-top:30px;">
+                            Merci d'avoir utilisé Voyager.
+                        </p>
+
+                        <p style="color:#999;
+                                  font-size:12px;
+                                  margin-top:30px;">
+                            Cet email a été généré automatiquement.
+                        </p>
+
+                    </div>
+
+                </div>
+                """.formatted(
+                    companyName,
+                    invoice.getInvoiceNumber(),
+                    amount,
+                    invoice.getPaymentReference() != null
+                            ? invoice.getPaymentReference()
+                            : "-"
+            );
+
+            helper.setText(
+                    html,
+                    true
+            );
+
+            FileSystemResource attachment =
+                    new FileSystemResource(pdfFile);
+
+            helper.addAttachment(
+                    invoice.getInvoiceNumber() + ".pdf",
+                    attachment
+            );
+
+            javaMailSender.send(message);
+
+        } catch (MessagingException e) {
+
+            throw new IllegalStateException(
+                    "Impossible d'envoyer la facture "
+                            + invoice.getInvoiceNumber()
+                            + " à "
+                            + invoice.getBuyerEmail(),
+                    e
+            );
         }
     }
 }
