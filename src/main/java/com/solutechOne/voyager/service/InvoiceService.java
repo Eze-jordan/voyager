@@ -418,7 +418,7 @@ public class InvoiceService {
     }
 
     // =========================================================
-    // GÉNÉRATION NUMÉRO FACTURE
+    // GÉNÉRATION NUMÉRO BILLET
     // =========================================================
 
     private String generateInvoiceNumber() {
@@ -437,7 +437,7 @@ public class InvoiceService {
                         .substring(0, 8)
                         .toUpperCase();
 
-        return "FAC-"
+        return "BIL-"
                 + date
                 + "-"
                 + random;

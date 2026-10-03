@@ -5,10 +5,14 @@ import com.solutechOne.voyager.dto.BasketCreateRequest;
 import com.solutechOne.voyager.dto.BasketResponse;
 import com.solutechOne.voyager.model.Basket;
 import com.solutechOne.voyager.service.BasketService;
+import com.solutechOne.voyager.service.InvoiceDownloadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.core.io.Resource;
 
 import java.util.List;
 
@@ -18,9 +22,11 @@ import java.util.List;
 public class BasketController {
 
     private final BasketService service;
+    private final InvoiceDownloadService invoiceDownloadService;
 
-    public BasketController(BasketService service) {
+    public BasketController(BasketService service, InvoiceDownloadService invoiceDownloadService) {
         this.service = service;
+        this.invoiceDownloadService = invoiceDownloadService;
     }
 
     @Operation(
@@ -94,5 +100,24 @@ public class BasketController {
     public ResponseEntity<Void> delete(@PathVariable("id") String basketId) {
         service.delete(basketId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{basketId}/invoice")
+    public ResponseEntity<Resource> downloadInvoice(
+            @PathVariable String basketId
+    ) {
+
+        InvoiceDownloadService.InvoiceDownload download =
+                invoiceDownloadService.getByBasketId(basketId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\""
+                                + download.filename()
+                                + "\""
+                )
+                .body(download.resource());
     }
 }

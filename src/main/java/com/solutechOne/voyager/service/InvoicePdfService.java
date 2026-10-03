@@ -283,7 +283,7 @@ public class InvoicePdfService {
             header.addCell(companyCell);
 
             // =================================================
-            // TITRE FACTURE
+            // TITRE BILLET
             // =================================================
 
             PdfPCell invoiceTitleCell =
@@ -299,7 +299,7 @@ public class InvoicePdfService {
 
             Paragraph title =
                     new Paragraph(
-                            "FACTURE",
+                            "BILLET",
                             titleFont
                     );
 
@@ -647,7 +647,7 @@ public class InvoicePdfService {
 
             Paragraph footer =
                     new Paragraph(
-                            "Facture générée automatiquement après confirmation du paiement.",
+                            "Billet  générée automatiquement après confirmation du paiement.",
                             smallFont
                     );
 
@@ -680,7 +680,7 @@ public class InvoicePdfService {
         } catch (Exception exception) {
 
             throw new IllegalStateException(
-                    "Impossible de générer le PDF de la facture "
+                    "Impossible de générer le PDF du billet  "
                             + invoice.getInvoiceNumber(),
                     exception
             );

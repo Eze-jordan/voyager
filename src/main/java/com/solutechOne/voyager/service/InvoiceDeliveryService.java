@@ -44,7 +44,7 @@ public class InvoiceDeliveryService {
                 || invoice.getBuyerEmail().isBlank()) {
 
             throw new IllegalStateException(
-                    "Aucun email acheteur pour la facture "
+                    "Aucun email acheteur pour le Billet "
                             + invoice.getInvoiceNumber()
             );
         }
@@ -53,7 +53,7 @@ public class InvoiceDeliveryService {
                 || invoice.getPdfPath().isBlank()) {
 
             throw new IllegalStateException(
-                    "Aucun PDF généré pour la facture "
+                    "Aucun PDF généré pour le Billet "
                             + invoice.getInvoiceNumber()
             );
         }

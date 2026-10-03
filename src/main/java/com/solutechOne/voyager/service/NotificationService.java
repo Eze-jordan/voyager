@@ -241,7 +241,7 @@ public class NotificationService {
                 || invoice.getBuyerEmail().isBlank()) {
 
             throw new IllegalStateException(
-                    "Aucune adresse email pour la facture "
+                    "Aucune adresse email pour le billet "
                             + invoice.getInvoiceNumber()
             );
         }
@@ -256,7 +256,7 @@ public class NotificationService {
 
         if (!pdfFile.exists() || !pdfFile.isFile()) {
             throw new IllegalStateException(
-                    "PDF de facture introuvable : "
+                    "PDF de billet introuvable : "
                             + pdfPath
             );
         }
@@ -280,7 +280,7 @@ public class NotificationService {
             );
 
             helper.setSubject(
-                    "Votre facture Voyager - "
+                    "Votre billet Voyager - "
                             + invoice.getInvoiceNumber()
             );
 
@@ -318,7 +318,7 @@ public class NotificationService {
                         </p>
 
                         <p>
-                            Votre facture
+                            Votre billet
                             <strong>%s</strong>
                             est disponible en pièce jointe.
                         </p>
@@ -373,7 +373,7 @@ public class NotificationService {
         } catch (MessagingException e) {
 
             throw new IllegalStateException(
-                    "Impossible d'envoyer la facture "
+                    "Impossible d'envoyer la billet  "
                             + invoice.getInvoiceNumber()
                             + " à "
                             + invoice.getBuyerEmail(),

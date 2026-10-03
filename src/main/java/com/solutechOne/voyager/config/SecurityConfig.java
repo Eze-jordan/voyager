@@ -89,7 +89,8 @@ public class SecurityConfig {
                                 "/api/V1/transport-means/getAll",
                                 "/api/V1/travels/**",
                                 "/api/V1/arrivals/company/{companyId}",
-                                "/api/V1/ticket-prices/company/{companyId}"
+                                "/api/V1/ticket-prices/company/{companyId}",
+                                "/api/V1/baskets/{basketId}/invoice"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

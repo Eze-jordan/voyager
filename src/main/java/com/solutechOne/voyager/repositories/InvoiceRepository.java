@@ -15,4 +15,5 @@ public interface InvoiceRepository
     Optional<Invoice> findByBasketId(String basketId);
 
     boolean existsByPaymentId(String paymentId);
+
 }

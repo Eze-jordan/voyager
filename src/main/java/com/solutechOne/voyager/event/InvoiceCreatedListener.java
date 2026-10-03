@@ -65,7 +65,7 @@ public class InvoiceCreatedListener {
                     invoicePdfService.generateInvoicePdf(invoice);
 
             log.info(
-                    ">>> PDF facture généré : {}",
+                    ">>> PDF Billet généré : {}",
                     pdfPath
             );
 
@@ -75,7 +75,7 @@ public class InvoiceCreatedListener {
             );
 
             log.info(
-                    ">>> Facture {} envoyée par email à {}",
+                    ">>> Billet {} envoyée par email à {}",
                     invoice.getInvoiceNumber(),
                     invoice.getBuyerEmail()
             );
