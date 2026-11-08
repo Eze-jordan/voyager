@@ -92,6 +92,12 @@ public class SecurityConfig {
                                 "/api/V1/ticket-prices/company/{companyId}",
                                 "/api/V1/baskets/{basketId}/invoice"
                         ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/uploads/profiles/**",
+                                "/uploads/compagnies/**",
+                                "/uploads/documents/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
