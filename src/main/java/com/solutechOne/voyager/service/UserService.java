@@ -9,6 +9,7 @@ import com.solutechOne.voyager.repositories.CompanyRepository;
 import com.solutechOne.voyager.repositories.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -19,7 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Random;
@@ -40,6 +40,10 @@ public class UserService implements UserDetailsService {
 
     @Autowired
     private NotificationService notificationService;
+
+    // Dossier des photos de profil monté sur le VPS via Docker.
+    @Value("${app.upload.dir.profiles}")
+    private String profilesUploadDir;
 
     /* ---------- Mapping utilitaires ---------- */
 
@@ -225,8 +229,8 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
 
         try {
-            // dossier local: uploads/profile
-            Path uploadDir = Paths.get("uploads", "profiles");
+            // dossier persistant: /app/uploads/profiles
+            Path uploadDir = Path.of(profilesUploadDir);
             Files.createDirectories(uploadDir);
 
             // nom unique
