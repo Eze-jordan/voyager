@@ -35,8 +35,7 @@ public class CompanyController {
                 .body(created);
     }
 
-    @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @GetMapping("/getAll")
     @Operation(summary = "Get all companies")
     public ResponseEntity<List<CompanyDTO>> findAll() {
         return ResponseEntity.ok(companyService.findAll());

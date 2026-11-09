@@ -15,10 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.UUID;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -248,48 +245,43 @@ public class CompanyService {
                 "message", "La compagnie " + company.getEmail() + " a été désarchivée et réactivée"
         );
     }
+    /**
+     * Remplace le logo après COMMIT ; en cas de ROLLBACK, efface le nouvel upload.
+     * La classe CompanyService est déjà annotée @Transactional.
+     */
     public CompanyDTO uploadLogo(String companyId, MultipartFile file) {
-
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Fichier logo manquant");
         }
+        if (file.getSize() > 1024L * 1024) {
+            throw new IllegalArgumentException("Le logo ne doit pas dépasser 1 Mo");
+        }
+        ImageReplacementSupport.verifierIdentifiant(companyId);
 
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new EntityNotFoundException("Compagnie introuvable: " + companyId));
 
-        // 🔒 Sécurité basique
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Le fichier doit être une image");
-        }
-
         try {
-            // 📁 dossier: uploads/companies/{id}
-            Path uploadDir = Path.of(compagniesUploadDir, companyId);
-            Files.createDirectories(uploadDir);
+            String extension = ImageReplacementSupport.extensionValidee(file);
+            Path dossier = ImageReplacementSupport.dossier(compagniesUploadDir, companyId);
+            String ancienneUrl = company.getUrlLogo();
+            String prefixUrl = "/uploads/compagnies/" + companyId + "/";
 
-            // 🖼 nom de fichier unique
-            String extension = file.getOriginalFilename()
-                    .substring(file.getOriginalFilename().lastIndexOf("."));
+            String nouvelleUrl = ImageReplacementSupport.enregistrerEtPlanifierNettoyage(
+                    file,
+                    dossier,
+                    extension,
+                    "logo-",
+                    ancienneUrl,
+                    prefixUrl
+            );
 
-            String filename = "logo-" + UUID.randomUUID() + extension;
-            Path targetPath = uploadDir.resolve(filename);
-
-            // 💾 copie du fichier
-            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-            // 🌐 URL publique (à adapter selon ton serveur)
-            String logoUrl = "/uploads/compagnies/" + companyId + "/" + filename;
-
-            company.setUrlLogo(logoUrl);
+            company.setUrlLogo(nouvelleUrl);
             companyRepository.save(company);
-
             return toDto(company);
-
         } catch (IOException e) {
-            throw new RuntimeException("Erreur lors de l’upload du logo", e);
+            throw new IllegalStateException("Erreur lors de l'enregistrement du logo", e);
         }
     }
-
 
 }

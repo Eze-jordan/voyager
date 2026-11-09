@@ -18,12 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -214,44 +212,41 @@ public class UserService implements UserDetailsService {
     }
 
 
+    /**
+     * Remplace la photo après COMMIT, avec nettoyage sur ROLLBACK.
+     * La classe UserService est déjà annotée @Transactional.
+     */
     public UserDTO updatePhoto(String userId, MultipartFile file) {
-
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Fichier photo manquant");
         }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !(contentType.equals("image/png") || contentType.equals("image/jpeg") || contentType.equals("image/webp"))) {
-            throw new IllegalArgumentException("Format non supporté. Utilisez PNG/JPG/WEBP");
+        if (file.getSize() > 2L * 1024 * 1024) {
+            throw new IllegalArgumentException("La photo ne doit pas dépasser 2 Mo");
         }
+        ImageReplacementSupport.verifierIdentifiant(userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
 
         try {
-            // dossier persistant: /app/uploads/profiles
-            Path uploadDir = Path.of(profilesUploadDir);
-            Files.createDirectories(uploadDir);
+            // Vérifie aussi la signature du fichier, pas uniquement son Content-Type.
+            String extension = ImageReplacementSupport.extensionValidee(file);
+            Path dossier = ImageReplacementSupport.dossier(profilesUploadDir, null);
+            String ancienneUrl = user.getPhotoProfil();
 
-            // nom unique
-            String ext = contentType.equals("image/png") ? ".png"
-                    : contentType.equals("image/webp") ? ".webp"
-                    : ".jpg";
+            String nouvelleUrl = ImageReplacementSupport.enregistrerEtPlanifierNettoyage(
+                    file,
+                    dossier,
+                    extension,
+                    "user-" + userId + "-",
+                    ancienneUrl,
+                    "/uploads/profiles/"
+            );
 
-            String filename = "user-" + userId + "-" + UUID.randomUUID() + ext;
-            Path target = uploadDir.resolve(filename);
-
-            // sauvegarde fichier
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-
-            // on stocke une URL ou un chemin (mieux: URL publique)
-            // ici: chemin relatif
-            user.setPhotoProfil("/uploads/profiles/" + filename);
-
+            user.setPhotoProfil(nouvelleUrl);
             return toDto(userRepository.save(user));
-
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur upload photo: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Erreur lors de l'enregistrement de la photo", e);
         }
     }
 

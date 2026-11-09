@@ -90,7 +90,8 @@ public class SecurityConfig {
                                 "/api/V1/travels/**",
                                 "/api/V1/arrivals/company/{companyId}",
                                 "/api/V1/ticket-prices/company/{companyId}",
-                                "/api/V1/baskets/{basketId}/invoice"
+                                "/api/V1/baskets/{basketId}/invoice",
+                                "/api/V1/companies/getAll"
                         ).permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
